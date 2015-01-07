@@ -18,9 +18,12 @@
   </div>
   <div class="form-group">
     <dfLabel ref="minutes" class="col-sm-2 control-label">
-      Minutes Worked:
+      Time Worked (HH:MM):
     </dfLabel>
-    <div class="col-sm-2">
+    <div class="col-sm-1">
+      <dfInput type="number" ref="hours" class="form-control" />
+    </div>
+    <div class="col-sm-1">
       <dfInput type="number" ref="minutes" class="form-control" />
     </div>
   </div>

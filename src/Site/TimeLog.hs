@@ -17,6 +17,7 @@ import qualified Data.List.NonEmpty            as NEL
 import           Data.Map.Syntax
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
+import           Data.Text.Encoding            (encodeUtf8)
 import           Data.Text.Lens                (unpacked)
 import           Data.Time                     (Day, getCurrentTime)
 import           Database.Persist.Sql
@@ -36,6 +37,14 @@ import           Phb.Types.TimeLog
 import           Phb.Util
 import           Site.Internal
 
+handlePester :: PhbHandler ()
+handlePester = do
+  cd  <- liftIO getCurrentDay
+  ps  <- runPersist $ missingTimeLogsFor cd
+  view mail >>= liftIO . runReaderT (traverse_ timelogPesterEmail ps)
+  flashSuccess "Pestered!"
+  redirect "/time_logs"
+
 timeLogRoutes :: PhbRoutes
 timeLogRoutes =
   [ ("/time_logs"         , ifTop $ render "time_logs/all")
@@ -44,11 +53,20 @@ timeLogRoutes =
   , ("/time_logs/:id/edit", ifTop $ render "time_logs/edit" )
   ]
 
-data TimeLogInput = TimeLogInput (Key Person) Day T.Text Int LinkKey deriving Show
+data TimeLogInput = TimeLogInput
+  { _timeLogInputPerson :: (Key Person)
+  , _timeLogInputDay    :: Day
+  , _timeLogInputDesc   :: T.Text
+  , _timeLogInputHours  :: Int
+  , _timeLogInputMins   :: Int
+  , _timeLogInputLink   :: LinkKey
+  } deriving Show
+makeLenses ''TimeLogInput
 
-userErrMsg,minuteErrMsg :: T.Text
+userErrMsg,minuteErrMsg,hourErrMsg :: T.Text
 userErrMsg = "Username cannot be empty"
-minuteErrMsg = "Minutes must be a number"
+minuteErrMsg = "Minutes must be a positive number"
+hourErrMsg   = "Hours must be a positive number"
 
 personChoiceOption :: Entity Person -> (Key Person,T.Text)
 personChoiceOption =
@@ -79,13 +97,16 @@ timeLogForm tl lk pp = monadic $ do
     <$> "username" .: choice pp (username <|> p)
     <*> "day"      .: html5DateFormlet (day <|> Just cd)
     <*> "desc"     .: text desc
+    <*> "hours"    .: stringRead minuteErrMsg hours
     <*> "minutes"  .: stringRead minuteErrMsg minutes
     <*> "link"     .: groupedChoice (groupLinkKeys lk) link
   where
     username = (tl ^? _Just . timeLogWholeLog . eVal . timeLogPerson )
     day      = (tl ^? _Just . timeLogWholeLog . eVal . timeLogDay )
     desc     = (tl ^? _Just . timeLogWholeLog . eVal . timeLogDesc )
-    minutes  = (tl ^? _Just . timeLogWholeLog . eVal . timeLogMinutes )
+    hours    = allMins <&> (`div` 60)
+    minutes  = allMins <&> (`mod` 60)
+    allMins  = (tl ^? _Just . timeLogWholeLog . eVal . timeLogMinutes )
     link     = (tl ^? _Just . timeLogWholeLink . _Just . timeLogLinkKey )
 
 
@@ -131,7 +152,7 @@ timeLogFormSplices rts = do
          void . runPersist $ insert (newTimeLog x ct)
          flashSuccess $ "Timelog Created"
          if   continue
-         then redirect "/time_logs/create"
+         then redirect $ "/time_logs/create?personId=" <> (encodeUtf8 $ keyToText (x^.timeLogInputPerson))
          else redirect "/time_logs"
        Just k  -> do
          void . runPersist $ replace k (newTimeLog x ct)
@@ -147,9 +168,9 @@ timeLogFormSplices rts = do
         , loadLinkOptions' WorkCategoryLink workCategoryName (loadActiveWorkCategories ct)
         ]
     loadLinkOptions' lc nl a = mkLinkOptions lc nl <$> a
-    newTimeLog (TimeLogInput p dy d m l) _ =
+    newTimeLog (TimeLogInput p dy d h m l) _ =
       let (pId,eId,bId,aId,wcId) = linkIds l
-      in TimeLog p d m dy pId eId bId aId wcId
+      in TimeLog p d (h*60 + m) dy pId eId bId aId wcId
 
     -- TODO: Surely this can be solved with prisms
     linkIds (ProjectLink p)      = (Just p,Nothing,Nothing,Nothing,Nothing)
@@ -193,11 +214,3 @@ allTimeLogSplices = do
   "allTimeLogs"   ## listTimeLogsSplices
   "createTimeLog" ## createTimeLogSplices
   "editTimeLog"   ## editTimeLogSplices
-
-handlePester :: PhbHandler ()
-handlePester = do
-  cd  <- liftIO getCurrentDay
-  ps  <- runPersist $ missingTimeLogsFor cd
-  view mail >>= liftIO . runReaderT (traverse_ timelogPesterEmail ps)
-  flashSuccess "Pestered!"
-  redirect "/time_logs"
