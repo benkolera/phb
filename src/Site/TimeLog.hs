@@ -27,7 +27,7 @@ import qualified Heist.Compiled.LowLevel       as C
 import           Snap                          (getParam, ifTop, redirect)
 import           Snap.Snaplet.Heist.Compiled
 import           Snap.Snaplet.Persistent       (runPersist)
-import           Text.Digestive
+import           Text.Digestive                as DF
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
@@ -63,10 +63,9 @@ data TimeLogInput = TimeLogInput
   } deriving Show
 makeLenses ''TimeLogInput
 
-userErrMsg,minuteErrMsg,hourErrMsg :: T.Text
+userErrMsg,timeErrMsg :: T.Text
 userErrMsg = "Username cannot be empty"
-minuteErrMsg = "Minutes must be a positive number"
-hourErrMsg   = "Hours must be a positive number"
+timeErrMsg = "Time spent must be greater than 0"
 
 personChoiceOption :: Entity Person -> (Key Person,T.Text)
 personChoiceOption =
@@ -90,17 +89,19 @@ groupLinkKeys=
 
 
 timeLogForm :: Maybe (TimeLogWhole) -> [(LinkKey,Text)] -> [(Key Person,Text)] -> PhbForm T.Text TimeLogInput
-timeLogForm tl lk pp = monadic $ do
+timeLogForm tl lk pp =
+  check timeErrMsg timeOk $ monadic $ do
   cd <- liftIO getCurrentDay
   p  <- getParam "personId" <&> (stringToKey . B.unpack =<<)
   return $ TimeLogInput
     <$> "username" .: choice pp (username <|> p)
     <*> "day"      .: html5DateFormlet (day <|> Just cd)
     <*> "desc"     .: text desc
-    <*> "hours"    .: stringRead minuteErrMsg hours
-    <*> "minutes"  .: stringRead minuteErrMsg minutes
+    <*> "hours"    .: positiveIntForm "Hours" hours
+    <*> "minutes"  .: positiveIntForm "Minutes" minutes
     <*> "link"     .: groupedChoice (groupLinkKeys lk) link
   where
+    timeOk i = ((i^.timeLogInputHours) + (i^.timeLogInputMins)) > 0
     username = (tl ^? _Just . timeLogWholeLog . eVal . timeLogPerson )
     day      = (tl ^? _Just . timeLogWholeLog . eVal . timeLogDay )
     desc     = (tl ^? _Just . timeLogWholeLog . eVal . timeLogDesc )
@@ -109,6 +110,16 @@ timeLogForm tl lk pp = monadic $ do
     allMins  = (tl ^? _Just . timeLogWholeLog . eVal . timeLogMinutes )
     link     = (tl ^? _Just . timeLogWholeLink . _Just . timeLogLinkKey )
 
+positiveIntForm
+  :: (Show a, Read a, Ord a, Num a, Monad m)
+  => Text
+  -> Maybe a
+  -> Form Text m a
+positiveIntForm thing n = validate vf (text (T.pack . show <$> n))
+  where
+    vf "" = DF.Success 0
+    vf x  = maybe err DF.Success . mfilter (>= 0) . readMaybe . T.unpack $ x
+    err = DF.Error $ thing <> " must be a positive number"
 
 timeLogFormSplices :: PhbRuntimeSplice (Maybe TimeLogWhole) -> PhbSplice
 timeLogFormSplices rts = do
