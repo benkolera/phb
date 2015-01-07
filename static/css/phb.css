@@ -1,0 +1,58 @@
+body {
+    padding-top: 45px;
+}
+
+h1 , .h1 {
+    font-size: 28px;
+}
+
+h2 , .h2 {
+    font-size: 24px;
+}
+
+.fake-pre {
+    word-break: break-all;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.status-green {
+    background-color: #93F562;
+}
+
+.status-amber {
+    background-color: #FFFF99;
+}
+
+.status-red {
+    background-color: #FD3333;
+}
+
+.status-blue {
+    background-color: #99CCFF;
+}
+
+.status-gray {
+    background-color: #DDDDDD;
+}
+
+.table-centered>tbody>tr>td, .table-centered>thead>tr>th {
+    text-align: center;
+}
+
+table>tbody>tr:last-child>td {
+    border-bottom: 1px solid #DDDDDD;
+}
+
+#message-container {
+    position: fixed;
+    top: 70;
+    right: 0;
+    width: 300px;
+    z-index: 9999;
+}
+
+.subform-heading {
+    text-align: center;
+    font-size: 12px;
+}

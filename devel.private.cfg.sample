@@ -1,0 +1,9 @@
+persist {
+  postgre-con-str   = "dbname=phb_dev"
+}
+
+mail {
+  fromName  = "Ben Kolera"
+  fromEmail = "bkolera@example.com"
+  hostname  = "phb.example.com.au"
+}
