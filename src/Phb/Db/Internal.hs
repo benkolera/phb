@@ -13,8 +13,8 @@
 
 module Phb.Db.Internal where
 
-import           BasePrelude                 hiding (delete, insert)
-import           Prelude                     ()
+import BasePrelude hiding (delete, insert)
+import Prelude     ()
 
 import           Control.Lens                hiding (Action)
 import           Control.Monad.Cont          (MonadIO)
@@ -27,7 +27,7 @@ import           Database.Persist
 import           Database.Persist.Postgresql hiding (getJust)
 import           Database.Persist.TH
 
-import           Phb.Db.Enums
+import Phb.Db.Enums
 
 share
   [mkPersist sqlSettings { mpsGenerateLenses = True }
@@ -299,3 +299,6 @@ diff oldList newList = (toRem,toAdd)
     new = S.fromList newList
     toRem = S.difference old new
     toAdd = S.difference new old
+
+paginate :: Int -> Int -> [SelectOpt record]
+paginate p pw = [LimitTo pw,OffsetBy ((p-1)*pw)]

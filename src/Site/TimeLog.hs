@@ -5,14 +5,13 @@
 {-# LANGUAGE TupleSections     #-}
 module Site.TimeLog where
 
-import           BasePrelude                   hiding (insert)
-import           Prelude                       ()
+import BasePrelude hiding (insert)
+import Prelude     ()
 
 import           Control.Lens                  hiding (Action)
 import           Control.Monad.IO.Class        (liftIO)
 import           Control.Monad.Reader          (runReaderT)
 import           Control.Monad.Trans           (lift)
-import qualified Data.ByteString.Char8         as B
 import qualified Data.List.NonEmpty            as NEL
 import           Data.Map.Syntax
 import           Data.Text                     (Text)
@@ -32,12 +31,12 @@ import           Text.Digestive                as DF
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
-import           Phb.Auth                      (userDbKey)
-import           Phb.Db
-import           Phb.Mail
-import           Phb.Types.TimeLog
-import           Phb.Util
-import           Site.Internal
+import Phb.Auth          (userDbKey)
+import Phb.Db
+import Phb.Mail
+import Phb.Types.TimeLog
+import Phb.Util
+import Site.Internal
 
 handlePester :: PhbHandler ()
 handlePester = do
@@ -49,10 +48,13 @@ handlePester = do
 
 timeLogRoutes :: PhbRoutes
 timeLogRoutes =
-  [ ("/time_logs"         , ifTop . userOrIndex $ render "time_logs/all")
-  , ("/time_logs/pester"  , handlePester)
-  , ("/time_logs/create"  , ifTop . userOrIndex $ render "time_logs/create" )
-  , ("/time_logs/:id/edit", ifTop . userOrIndex $ render "time_logs/edit" )
+  [ ("/time_logs"               , ifTop . userOrIndex $ render "time_logs/all")
+  , ("/time_logs/pester"        , handlePester)
+  , ("/time_logs/create"        , ifTop . userOrIndex $ render "time_logs/create" )
+  , ("/time_logs/mine"          , ifTop . userOrIndex $ render "time_logs/mine" )
+  , ("/time_logs/by_day/:day"   , ifTop . userOrIndex $ render "time_logs/by_day" )
+  , ("/time_logs/by_user/:user" , ifTop . userOrIndex $ render "time_logs/by_user" )
+  , ("/time_logs/:id/edit"      , ifTop . userOrIndex $ render "time_logs/edit" )
   ]
 
 data TimeLogInput = TimeLogInput
@@ -194,16 +196,18 @@ timeLogFormSplices rts = do
 
 timeLogSplices :: Splices (PhbRuntimeSplice (TimeLogWhole) -> PhbSplice)
 timeLogSplices = mapV (C.pureSplice . C.textSplice) $ do
-  "username"    ## (^. timeLogWholePerson . personName)
-  "day"         ## (^. timeLogWholeLog . eVal . timeLogDay . to spliceDay )
-  "minutes"     ## (^. timeLogWholeLog . eVal . timeLogMinutes . to show . from unpacked)
-  "timeAgainst" ## (^. timeLogWholeLink . _Just . timeLogLinkName )
-  "notes"       ## (^. timeLogWholeLog . eVal . timeLogDesc)
-  "id"          ## (^. timeLogWholeLog . eKey . to spliceKey )
+  "personId"    ## (^.timeLogWholeLog.eVal.timeLogPerson.to spliceKey)
+  "username"    ## (^.timeLogWholePerson . personName)
+  "day"         ## (^.timeLogWholeLog.eVal.timeLogDay.to spliceDay)
+  "minutes"     ## (^.timeLogWholeLog.eVal.timeLogMinutes.to show.from unpacked)
+  "timeAgainst" ## (^.timeLogWholeLink._Just.timeLogLinkName )
+  "notes"       ## (^.timeLogWholeLog.eVal.timeLogDesc)
+  "id"          ## (^.timeLogWholeLog.eKey.to spliceKey )
 
-timeLogsSplices :: PhbRuntimeSplice [TimeLogWhole] -> PhbSplice
+timeLogsSplices :: PhbRuntimeSplice (Text,[TimeLogWhole]) -> PhbSplice
 timeLogsSplices = C.withSplices C.runChildren $ do
-  "timeLogRow" ## C.manyWithSplices C.runChildren timeLogSplices
+  "timeLogTitle" ## (C.pureSplice . C.textSplice) fst
+  "timeLogRow"   ## C.manyWithSplices C.runChildren timeLogSplices . fmap snd
 
 createTimeLogSplices :: PhbSplice
 createTimeLogSplices = timeLogFormSplices (pure Nothing)
@@ -214,16 +218,50 @@ editTimeLogSplices = timeLogFormSplices . lift $ do
   tlw <- runPersist $ loadTimeLogWhole tl
   pure (Just tlw)
 
-listTimeLogsSplices :: PhbSplice
-listTimeLogsSplices = do
+byDayTimeLogsSplices :: PhbSplice
+byDayTimeLogsSplices = do
   timeLogsSplices . lift $ do
+    pgs   <- defPaginationParam
+    d     <- requireOr400 "Invalid Day" =<< dateParam "day"
     runPersist $ do
-      twes <- selectList [] [Desc TimeLogDay]
+      twes <- selectList [TimeLogDay ==. d] (pgs ++ [Desc TimeLogId])
       twL <- traverse loadTimeLogWhole twes
-      pure twL
+      pure (T.pack (show d),twL)
+
+byUserTimeLogsSplices :: PhbSplice
+byUserTimeLogsSplices = do
+  timeLogsSplices . lift $ do
+    pgs   <- defPaginationParam
+    p     <- requireEntity "UserById" "user"
+    runPersist $ do
+      twes <- selectList [TimeLogPerson ==. (entityKey p)] (pgs ++ [Desc TimeLogDay])
+      twL <- traverse loadTimeLogWhole twes
+      pure (p^.eVal.personName,twL)
+
+myTimeLogsSplices :: PhbSplice
+myTimeLogsSplices = do
+  timeLogsSplices . lift $ do
+    pgs    <- defPaginationParam
+    Just p <- (userDbKey =<<) <$> with auth currentUser
+    runPersist $ do
+      twes <- selectList [TimeLogPerson ==. p] (pgs ++ [Desc TimeLogDay])
+      twL <- traverse loadTimeLogWhole twes
+      pure ("My Time Logs",twL)
+
+allTimeLogsSplices :: PhbSplice
+allTimeLogsSplices = do
+  timeLogsSplices . lift $ do
+    pgs <- defPaginationParam
+    runPersist $ do
+      twes <- selectList [] (pgs ++ [Desc TimeLogDay])
+      twL <- traverse loadTimeLogWhole twes
+      pure ("All",twL)
 
 allTimeLogSplices :: Splices PhbSplice
 allTimeLogSplices = do
-  "allTimeLogs"   ## listTimeLogsSplices
-  "createTimeLog" ## createTimeLogSplices
-  "editTimeLog"   ## editTimeLogSplices
+  "allTimeLogs"    ## allTimeLogsSplices
+  "myTimeLogs"     ## myTimeLogsSplices
+  "byDayTimeLogs"  ## byDayTimeLogsSplices
+  "byUserTimeLogs" ## byUserTimeLogsSplices
+  "createTimeLog"  ## createTimeLogSplices
+  "editTimeLog"    ## editTimeLogSplices

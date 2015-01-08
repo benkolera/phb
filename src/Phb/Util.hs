@@ -10,9 +10,13 @@ import qualified Data.Text as T
 import Database.Persist (ToBackendKey,Key,PersistEntity,keyFromValues,toPersistValue)
 import Database.Persist.Sql (fromSqlKey,SqlBackend)
 import Data.Time
+import System.Locale (defaultTimeLocale)
 
 getCurrentDay :: IO Day
-getCurrentDay = utctDay <$> getCurrentTime
+getCurrentDay = localDay . zonedTimeToLocalTime <$> getZonedTime
+
+parseDay :: String -> Maybe Day
+parseDay = parseTime defaultTimeLocale "%F"
 
 fromGregorianTime :: Integer -> Int -> Int -> Int -> Int -> Pico -> LocalTime
 fromGregorianTime y m d hh mm ss =

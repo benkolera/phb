@@ -7,8 +7,8 @@
 {-# LANGUAGE TypeSynonymInstances  #-}
 module Site.Internal where
 
-import           BasePrelude                             hiding (Handler)
-import           Prelude                                 ()
+import BasePrelude hiding (Handler)
+import Prelude     ()
 
 import           Blaze.ByteString.Builder.ByteString     (fromByteString)
 import           Blaze.ByteString.Builder.Internal.Types (Builder)
@@ -49,10 +49,10 @@ import           Text.Digestive                          (Form, Formlet, check,
                                                           text)
 import           Text.XmlHtml                            (getAttribute)
 
-import           Phb.Db
-import           Phb.Ldap
-import           Phb.Mail
-import           Phb.Util
+import Phb.Db
+import Phb.Ldap
+import Phb.Mail
+import Phb.Util
 
 data Phb = Phb
   { _heist :: Snaplet (Heist Phb)
@@ -216,6 +216,25 @@ nelOf errMsg opts = check errMsg null . listOf opts
 
 neText :: Monad m => v -> Maybe Text -> Form v m Text
 neText errMsg = check errMsg isNotEmpty . text
+
+dateParam :: ByteString -> PhbHandler (Maybe Day)
+dateParam l = (parseDay . B.unpack =<<) <$> getParam l
+
+pageParam :: PhbHandler Int
+pageParam = do
+  pMay <- getParam "page"
+  pure
+    . fromMaybe 1
+    . mfilter (> 1)
+    . (readMaybe =<<)
+    . fmap B.unpack
+    $ pMay
+
+paginationParam  :: Int -> PhbHandler [SelectOpt r]
+paginationParam pw = flip paginate pw <$> pageParam
+
+defPaginationParam :: PhbHandler [SelectOpt r]
+defPaginationParam = paginationParam 25
 
 userOrIndex :: PhbHandler () -> PhbHandler ()
 userOrIndex = requireUser auth notLoggedIn
