@@ -10,7 +10,7 @@ module Phb.Auth
     ( PhbAuthManager
     , initPhbAuthManager
     , loginViaLdap
-    , userDBKey
+    , userDbKey
     ) where
 
 import           BasePrelude                  hiding (Handler, left)
@@ -119,8 +119,8 @@ initPhbAuthManager l pool =
        , randomNumberGenerator = rng
        }
 
-userDBKey :: AuthUser -> Maybe PersonLoginId
-userDBKey = (textToKey . unUid =<<) . userId
+userDbKey :: AuthUser -> Maybe PersonId
+userDbKey = (textToKey . unUid =<<) . userId
 
 instance IAuthBackend PhbAuthManager where
   save am = withAuthPool am . upsertAuthUser

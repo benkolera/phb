@@ -31,7 +31,6 @@ import qualified Text.Blaze.Html5.Attributes   as A
 import           Text.Blaze.Internal           (textValue)
 
 import           Phb.Db
-import           Phb.Util
 
 data MailConfig = MailConfig
   { _mcFromAddr :: Address
@@ -61,7 +60,7 @@ postEmail toAddr subj plain html = do
   liftIO $ renderSendMailCustom path ops m
 
 timelogPesterEmail :: Entity Person -> ReaderT MailConfig IO ()
-timelogPesterEmail (Entity k p) = do
+timelogPesterEmail (Entity _ p) = do
   l <- hoist generalize link
   postEmail
    (personToAddress p)
@@ -72,7 +71,7 @@ timelogPesterEmail (Entity k p) = do
  where
    intro = "You have not logged time for today."
    plea  = "Please log it here: "
-   link  = mkLink $ "/time_logs/create?personId=" <> (keyToText k)
+   link  = mkLink $ "/time_logs/create"
    plain l = TL.unlines
      [ intro
      , plea <> l

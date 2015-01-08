@@ -24,13 +24,15 @@ import           Database.Persist.Sql
 import           Heist
 import qualified Heist.Compiled                as C
 import qualified Heist.Compiled.LowLevel       as C
-import           Snap                          (getParam, ifTop, redirect)
+import           Snap                          (getParam, ifTop, redirect, with)
+import           Snap.Snaplet.Auth
 import           Snap.Snaplet.Heist.Compiled
 import           Snap.Snaplet.Persistent       (runPersist)
 import           Text.Digestive                as DF
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
+import           Phb.Auth                      (userDbKey)
 import           Phb.Db
 import           Phb.Mail
 import           Phb.Types.TimeLog
@@ -92,7 +94,7 @@ timeLogForm :: Maybe (TimeLogWhole) -> [(LinkKey,Text)] -> [(Key Person,Text)] -
 timeLogForm tl lk pp =
   check timeErrMsg timeOk $ monadic $ do
   cd <- liftIO getCurrentDay
-  p  <- getParam "personId" <&> (stringToKey . B.unpack =<<)
+  p  <- (userDbKey =<<) <$> with auth currentUser
   return $ TimeLogInput
     <$> "username" .: choice pp (username <|> p)
     <*> "day"      .: html5DateFormlet (day <|> Just cd)
