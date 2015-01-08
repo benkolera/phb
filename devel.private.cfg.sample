@@ -7,3 +7,9 @@ mail {
   fromEmail = "bkolera@example.com"
   hostname  = "phb.example.com.au"
 }
+
+ldap {
+  hostname = "ldap.example.com"
+  baseDn   = "dc=example,dc=com"
+}
+
