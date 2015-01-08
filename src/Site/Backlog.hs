@@ -2,8 +2,8 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Site.Backlog where
 
-import BasePrelude hiding (insert)
-import Prelude     ()
+import           BasePrelude                   hiding (insert)
+import           Prelude                       ()
 
 import           Control.Lens
 import           Control.Monad.Trans           (lift, liftIO)
@@ -22,14 +22,14 @@ import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
 import           Phb.Db
-import qualified Phb.Types.Backlog as T
+import qualified Phb.Types.Backlog             as T
 import           Site.Internal
 
 backlogRoutes :: PhbRoutes
 backlogRoutes =
-  [("/backlog",ifTop $ render "backlog/all")
-  ,("/backlog/create",ifTop $ render "backlog/create")
-  ,("/backlog/:id/edit",ifTop $ render "backlog/edit")
+  [("/backlog",ifTop . userOrIndex . render $ "backlog/all")
+  ,("/backlog/create",ifTop . userOrIndex . render $ "backlog/create")
+  ,("/backlog/:id/edit",ifTop . userOrIndex . render $ "backlog/edit")
   ]
 
 data BacklogInput = BacklogInput

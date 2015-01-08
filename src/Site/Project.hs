@@ -30,9 +30,9 @@ import           Site.Internal
 
 projectRoutes :: PhbRoutes
 projectRoutes =
-  [("/projects"       ,ifTop $ render "projects/all")
-  ,("/projects/create",ifTop $ render "projects/create")
-  ,("/projects/:id/edit",ifTop $ render "projects/edit")
+  [("/projects"       ,ifTop . userOrIndex . render $ "projects/all")
+  ,("/projects/create",ifTop . userOrIndex . render $ "projects/create")
+  ,("/projects/:id/edit",ifTop . userOrIndex . render $ "projects/edit")
   ]
 
 

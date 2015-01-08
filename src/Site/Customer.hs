@@ -2,8 +2,8 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Site.Customer where
 
-import BasePrelude hiding (insert)
-import Prelude     ()
+import           BasePrelude                   hiding (insert)
+import           Prelude                       ()
 
 import           Control.Lens
 import           Control.Monad.Trans           (lift, liftIO)
@@ -21,14 +21,14 @@ import           Text.Digestive
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
-import Phb.Db
-import Site.Internal
+import           Phb.Db
+import           Site.Internal
 
 customerRoutes :: PhbRoutes
 customerRoutes =
-  [("/customers",ifTop $ render "customers/all")
-  ,("/customers/create",ifTop $ render "customers/create")
-  ,("/customers/:id/edit",ifTop $ render "customers/edit")
+  [("/customers",ifTop . userOrIndex . render $ "customers/all")
+  ,("/customers/create",ifTop . userOrIndex . render $ "customers/create")
+  ,("/customers/:id/edit",ifTop . userOrIndex . render $ "customers/edit")
   ]
 
 data CustomerInput = CustomerInput

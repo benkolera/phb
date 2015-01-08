@@ -1,4 +1,4 @@
-<apply template="base_unauthed">
+<apply template="base">
   <heartbeatLatest>
     <apply template="/heartbeats/_view" />
   </heartbeatLatest>

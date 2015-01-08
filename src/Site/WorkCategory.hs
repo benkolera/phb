@@ -26,9 +26,9 @@ import           Site.Internal
 
 workCategoryRoutes :: PhbRoutes
 workCategoryRoutes =
-  [("/work_categories",ifTop $ render "work_categories/all")
-  ,("/work_categories/create",ifTop $ render "work_categories/create")
-  ,("/work_categories/:id/edit",ifTop $ render "work_categories/edit")
+  [("/work_categories",ifTop . userOrIndex . render $ "work_categories/all")
+  ,("/work_categories/create",ifTop . userOrIndex . render $ "work_categories/create")
+  ,("/work_categories/:id/edit",ifTop . userOrIndex . render $ "work_categories/edit")
   ]
 
 data WorkCategoryInput = WorkCategoryInput

@@ -3,8 +3,8 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Site.Event where
 
-import BasePrelude hiding (index, insert)
-import Prelude     ()
+import           BasePrelude                   hiding (index, insert)
+import           Prelude                       ()
 
 import           Control.Lens
 import           Control.Monad.Trans           (lift, liftIO)
@@ -25,14 +25,14 @@ import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
 import           Phb.Db
-import qualified Phb.Types.Event as T
+import qualified Phb.Types.Event               as T
 import           Site.Internal
 
 eventRoutes :: PhbRoutes
 eventRoutes =
-  [("/events"       ,ifTop $ render "events/all")
-  ,("/events/create",ifTop $ render "events/create")
-  ,("/events/:id/edit",ifTop $ render "events/edit")
+  [("/events"       ,ifTop . userOrIndex . render $ "events/all")
+  ,("/events/create",ifTop . userOrIndex . render $ "events/create")
+  ,("/events/:id/edit",ifTop . userOrIndex . render $ "events/edit")
   ]
 
 data EventInput = EventInput

@@ -3,7 +3,7 @@
 module Site.Person where
 
 
-import           BasePrelude                   hiding (bool, insert)
+import           BasePrelude                   hiding (bool, delete, insert)
 import           Prelude                       ()
 
 import           Control.Lens
@@ -36,29 +36,36 @@ data PersonInput = PersonInput
   { _personInputName              :: Text
   , _personInputEmail             :: Text
   , _personInputDepartment        :: Text
+  , _personInputLoginName         :: Maybe Text
   , _personInputReceivesHeartbeat :: Bool
   , _personInputLogsTime          :: Bool
   }
 makeLenses ''PersonInput
 
-personForm :: Maybe Person -> PhbForm T.Text PersonInput
+personForm
+  :: Maybe (Entity Person,Maybe (Entity PersonLogin))
+  -> PhbForm T.Text PersonInput
 personForm e = PersonInput
   <$> "name"              .: check nameErrMsg isNotEmpty (text name)
   <*> "email"             .: check emailErrMsg isNotEmpty (text email)
   <*> "department"        .: check departmentErrMsg isNotEmpty (text department)
+  <*> "loginName"         .: optionalText loginName
   <*> "receivesHeartbeat" .: bool receivesHeartbeat
   <*> "logsTime"          .: bool logsTime
   where
-    name              = e ^?_Just.personName
-    email             = e ^?_Just.personEmail
-    department        = e ^?_Just.personDepartment
-    receivesHeartbeat = e ^?_Just.personReceivesHeartbeat
-    logsTime          = e ^?_Just.personLogsTime
+    name              = e ^?_Just._1.eVal.personName
+    email             = e ^?_Just._1.eVal.personEmail
+    department        = e ^?_Just._1.eVal.personDepartment
+    receivesHeartbeat = e ^?_Just._1.eVal.personReceivesHeartbeat
+    logsTime          = e ^?_Just._1.eVal.personLogsTime
+    loginName         = e ^?_Just._2._Just.eVal.personLoginLogin
     nameErrMsg        = "Name must not be empty"
     emailErrMsg       = "Email must not be empty"
     departmentErrMsg  = "Department must not be empty"
 
-personFormSplices :: PhbRuntimeSplice (Maybe (Entity Person)) -> PhbSplice
+personFormSplices
+  :: PhbRuntimeSplice (Maybe (Entity Person,Maybe (Entity PersonLogin)))
+  -> PhbSplice
 personFormSplices rts = do
   promise <- C.newEmptyPromise
   out <- C.withSplices
@@ -67,28 +74,54 @@ personFormSplices rts = do
          (C.getPromise promise)
   pure . C.yieldRuntime $ do
     e  <- rts
-    cd <- liftIO getCurrentTime
-    (v, result) <- lift $ runForm "person" (personForm . fmap entityVal $ e)
+    ct <- liftIO getCurrentTime
+    (v, result) <- lift $ runForm "person" $ personForm e
 
     case result of
       Just x  -> do
-        lift (createPerson x cd (e ^? _Just . eKey))
+        lift (createPerson x ct (e ^?_Just._1.eKey) (e ^?_Just._2._Just.eKey))
       Nothing -> C.putPromise promise v >> C.codeGen out
   where
-    createPerson x _ kMay = do
+    createPerson x ct pkMay plkMay = do
       -- Should probably change this so that a DB error wouldn't just
       -- Crash us and should put a nice error in the form.
-      case kMay of
+      case pkMay of
        Nothing -> do
          void . runPersist $ do
-           insert (newPerson x)
+           pk <- insert (newPerson x)
+           traverse (createLogin ct pk plkMay) (x^.personInputLoginName)
          flashSuccess $ "Person Created"
-       Just k  -> do
+       Just pk  -> do
          void . runPersist $ do
-           replace k (newPerson x)
+           replace pk (newPerson x)
+           case x^.personInputLoginName of
+             Nothing  -> traverse_ delete plkMay
+             Just ln  -> createLogin ct pk plkMay ln
          flashSuccess $ "Person Updated"
       redirect "/people"
-    newPerson (PersonInput n e d rh lt) = Person n e d rh lt
+    createLogin _ _ (Just plk) ln = update plk [PersonLoginLogin =. ln]
+    createLogin ct pk _ ln        = void . insert $ PersonLogin
+      pk
+      ln
+      ""
+      Nothing
+      Nothing
+      Nothing
+      0
+      0
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      ct
+      ct
+      Nothing
+      Nothing
+      ""
+      ""
+
+    newPerson (PersonInput n e d _ rh lt) = Person n e d rh lt
 
 personRowSplice :: PhbRuntimeSplice [Entity Person] -> PhbSplice
 personRowSplice = rowSplice (ts <> ss)
@@ -118,7 +151,9 @@ createPeopleplices = personFormSplices (pure Nothing)
 
 editPeopleplices :: PhbSplice
 editPeopleplices = personFormSplices . lift $ do
-  Just <$> requireEntity "person" "id"
+  p  <- requireEntity "person" "id"
+  pl <- runPersist $ selectFirst [PersonLoginPerson ==. p^.eKey] []
+  pure . Just $ (p,pl)
 
 allPersonSplices :: Splices PhbSplice
 allPersonSplices = do

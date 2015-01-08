@@ -111,11 +111,11 @@ runPersist action = do
 -- This is being done because sometimes Postgres will reap connections
 -- and the connection leased out of the pool may then be stale and
 -- will often times throw a `Couldn'tGetSQLConnection` type value.
-withPool :: (MonadIO m, MonadSnap m)
+withPool :: (MonadIO m)
          => ConnectionPool
          -> SqlPersistT (ResourceT (NoLoggingT IO)) a
          -> m a
-withPool cp f = liftSnap . liftIO $ recoverAll retryPolicy (runF f cp)
+withPool cp f = liftIO $ recoverAll retryPolicy (runF f cp)
   where
     retryPolicy = constantDelay 50000 <> limitRetries 5
     runF f' cp' = liftIO . runNoLoggingT . runResourceT $ runSqlPool f' cp'

@@ -4,7 +4,7 @@ module Phb.Mail
     ( MailConfig(..)
     , postEmail
     , timelogPesterEmail
-    , fromSnapConfig
+    , mkMailConfig
     ) where
 
 import           BasePrelude
@@ -41,8 +41,8 @@ data MailConfig = MailConfig
   } deriving (Show)
 makeLenses ''MailConfig
 
-fromSnapConfig :: C.Config -> IO MailConfig
-fromSnapConfig c = MailConfig
+mkMailConfig :: C.Config -> IO MailConfig
+mkMailConfig c = MailConfig
   <$> requireFromAddress
   <*> C.lookupDefault "/usr/sbin/sendmail" c "mail.path"
   <*> C.lookupDefault ["-t"]               c "mail.option"

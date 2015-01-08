@@ -13,16 +13,18 @@ import           Database.Persist.Sql                        (runMigration)
 import           Heist
 import qualified Heist.Interpreted                           as I
 import           Snap
-import           Snap.Snaplet.Auth
-import           Snap.Snaplet.Auth.Backends.JsonFile
+import           Snap.Snaplet.Auth                           (addAuthSplices)
 import           Snap.Snaplet.Heist.Compiled
 import           Snap.Snaplet.Persistent
 import           Snap.Snaplet.Session.Backends.CookieSession
 import           Snap.Util.FileServe
 
+import           Phb.Auth                                    (initPhbAuthManager)
 import           Phb.Db                                      (migrateAll)
-import           Phb.Mail                                    (fromSnapConfig)
+import           Phb.Ldap                                    (mkLdapConfig)
+import           Phb.Mail                                    (mkMailConfig)
 import           Site.Action
+import           Site.Auth
 import           Site.Backlog
 import           Site.Customer
 import           Site.Event
@@ -40,6 +42,7 @@ routes = fold $
   , customerRoutes
   , eventRoutes
   , heartbeatRoutes
+  , authRoutes
   , personRoutes
   , projectRoutes
   , timeLogRoutes
@@ -56,10 +59,13 @@ app = makeSnaplet "Phb" "A pointy haired boss" Nothing $ do
   s <- nestSnaplet "sess" sess $
     initCookieSessionManager "site_key.txt" "sess" (Just 3600)
   a <- nestSnaplet "auth" auth $
-    initJsonFileAuthManager defAuthSettings sess "users.json"
-  m <- getSnapletUserConfig >>= liftIO . fromSnapConfig
+    initPhbAuthManager sess (persistPool . view snapletValue $ p)
+  c <- getSnapletUserConfig
+  m <- liftIO $ mkMailConfig c
+  l <- liftIO $ mkLdapConfig c
+  addAuthSplices h auth
   addRoutes routes
-  return $ Phb h p a s m
+  return $ Phb h p a s m l
 
 allCompiledSplices :: Splices PhbSplice
 allCompiledSplices = fold
@@ -68,6 +74,7 @@ allCompiledSplices = fold
   , allCustomerSplices
   , allEventSplices
   , allHeartbeatSplices
+  , allAuthSplices
   , allPersonSplices
   , allProjectSplices
   , allTimeLogSplices

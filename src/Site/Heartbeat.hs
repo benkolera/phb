@@ -37,10 +37,10 @@ import           Site.Project                            (projectRowSplice)
 
 heartbeatRoutes :: PhbRoutes
 heartbeatRoutes =
-  [ ("heartbeats",ifTop      $ render "heartbeats/all")
-  , ("/heartbeats/create",ifTop $ render "heartbeats/create")
-  , ("/heartbeats/:id/edit",ifTop $ render "heartbeats/edit")
-  , ("/heartbeats/:id",ifTop $ render "heartbeats/view")
+  [ ("heartbeats",ifTop . userOrIndex . render $ "heartbeats/all")
+  , ("/heartbeats/create",ifTop . userOrIndex . render $ "heartbeats/create")
+  , ("/heartbeats/:id/edit",ifTop . userOrIndex . render $ "heartbeats/edit")
+  , ("/heartbeats/:id",ifTop . userOrIndex . render $ "heartbeats/view")
   ]
 
 -- TODO: Taking a T.Heartbeat instead of a HeartbeatInput is kinda off

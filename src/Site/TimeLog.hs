@@ -47,10 +47,10 @@ handlePester = do
 
 timeLogRoutes :: PhbRoutes
 timeLogRoutes =
-  [ ("/time_logs"         , ifTop $ render "time_logs/all")
+  [ ("/time_logs"         , ifTop . userOrIndex $ render "time_logs/all")
   , ("/time_logs/pester"  , handlePester)
-  , ("/time_logs/create"  , ifTop $ render "time_logs/create" )
-  , ("/time_logs/:id/edit", ifTop $ render "time_logs/edit" )
+  , ("/time_logs/create"  , ifTop . userOrIndex $ render "time_logs/create" )
+  , ("/time_logs/:id/edit", ifTop . userOrIndex $ render "time_logs/edit" )
   ]
 
 data TimeLogInput = TimeLogInput

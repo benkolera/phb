@@ -35,15 +35,25 @@
           <a class="navbar-brand" href="/">PHB</a>
         </div>
         <div id="navbar" class="collapse navbar-collapse">
-          <ul class="nav navbar-nav">
-            <li><a href="/heartbeats">Heartbeats</a></li>
-            <li><a href="/projects">Projects</a></li>
-            <li><a href="/backlog">Backlog</a></li>
-            <li><a href="/events">Events</a></li>
-            <li><a href="/time_logs">Time Logs</a></li>
-            <li><a href="/customers">Customers</a></li>
-            <li><a href="/work_categories">Work Categories</a></li>
-            <li><a href="/people">People</a></li>
+          <ifLoggedIn>
+            <ul class="nav navbar-nav">
+              <li><a href="/heartbeats">Heartbeats</a></li>
+              <li><a href="/projects">Projects</a></li>
+              <li><a href="/backlog">Backlog</a></li>
+              <li><a href="/events">Events</a></li>
+              <li><a href="/time_logs">Time Logs</a></li>
+              <li><a href="/customers">Customers</a></li>
+              <li><a href="/work_categories">Work Categories</a></li>
+              <li><a href="/people">People</a></li>
+            </ul>
+          </ifLoggedIn>
+          <ul class="nav navbar-nav navbar-right">
+            <ifLoggedIn>
+              <li><a href="/logout">Logout</a></li>
+            </ifLoggedIn>
+            <ifLoggedOut>
+              <li><a href="/login">Login</a></li>
+            </ifLoggedOut>
           </ul>
         </div>
       </div>

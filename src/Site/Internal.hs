@@ -27,7 +27,8 @@ import           Heist                                   (RuntimeSplice,
 import qualified Heist.Compiled                          as C
 import qualified Heist.Compiled.LowLevel                 as C
 import           Snap                                    hiding (get)
-import           Snap.Snaplet.Auth                       (AuthManager)
+import           Snap.Snaplet.Auth                       (AuthManager,
+                                                          requireUser)
 import           Snap.Snaplet.Heist.Compiled             (HasHeist, Heist,
                                                           heistLens)
 import           Snap.Snaplet.Persistent                 (HasPersistPool,
@@ -49,6 +50,7 @@ import           Text.Digestive                          (Form, Formlet, check,
 import           Text.XmlHtml                            (getAttribute)
 
 import           Phb.Db
+import           Phb.Ldap
 import           Phb.Mail
 import           Phb.Util
 
@@ -58,6 +60,7 @@ data Phb = Phb
   , _auth  :: Snaplet (AuthManager Phb)
   , _sess  :: Snaplet SessionManager
   , _mail  :: MailConfig
+  , _ldap  :: LdapConfig
   }
 
 makeLenses ''Phb
@@ -146,8 +149,10 @@ flashSplice = do
   where
     splices :: Text -> PhbRuntimeSplice Text -> Splices PhbSplice
     splices t m = do
-      "type"    ## pure $ C.yieldPureText t
+      "type"    ## pure . C.yieldPureText . translateType $ t
       "message" ## pure $ C.yieldRuntimeText m
+    translateType "error" = "danger"
+    translateType a = a
 
 flashSplices :: Splices PhbSplice
 flashSplices = "flash" ## flashSplice
@@ -194,6 +199,7 @@ html5OptLocalTimeFormlet :: Monad m => Maybe LocalTime -> Form Text m (Maybe Loc
 html5OptLocalTimeFormlet = optionalLocalTimeFormlet "%F" "%R"
 
 type PhbHandler = Handler Phb Phb
+type PhbAuthedHandler = Handler Phb (AuthManager Phb)
 type PhbSplice = C.Splice PhbHandler
 type PhbRuntimeSplice = RuntimeSplice PhbHandler
 type PhbRoutes = [(ByteString, PhbHandler ())]
@@ -210,3 +216,11 @@ nelOf errMsg opts = check errMsg null . listOf opts
 
 neText :: Monad m => v -> Maybe Text -> Form v m Text
 neText errMsg = check errMsg isNotEmpty . text
+
+userOrIndex :: PhbHandler () -> PhbHandler ()
+userOrIndex = requireUser auth notLoggedIn
+ where
+   notLoggedIn = do
+     p <- rqURI <$> getRequest
+     flashError "You must be logged in to view this page"
+     redirect $ "/login?andThen=" <> urlEncode p

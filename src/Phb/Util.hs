@@ -21,6 +21,9 @@ fromGregorianTime y m d hh mm ss =
 keyToText :: ToBackendKey SqlBackend a => Key a -> Text
 keyToText = T.pack . show . fromSqlKey
 
+textToKey :: PersistEntity r => Text -> Maybe (Key r)
+textToKey = stringToKey . T.unpack
+
 stringToKey :: PersistEntity r => String -> Maybe (Key r)
 stringToKey s = do
   idInt <- readMaybe s :: Maybe Int64
