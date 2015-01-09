@@ -41,7 +41,14 @@
               <li><a href="/projects">Projects</a></li>
               <li><a href="/backlog">Backlog</a></li>
               <li><a href="/events">Events</a></li>
-              <li><a href="/time_logs">Time Logs</a></li>
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Time Logs <span class="caret"></span></a>
+                <ul class="dropdown-menu" role="menu">
+                  <li><a href="/time_logs/create">Log Time</a></li>
+                  <li><a href="/time_logs/mine">My Time Logs</a></li>
+                  <li><a href="/time_logs">All Time Logs</a></li>
+                </ul>
+              </li>
               <li><a href="/customers">Customers</a></li>
               <li><a href="/work_categories">Work Categories</a></li>
               <li><a href="/people">People</a></li>
