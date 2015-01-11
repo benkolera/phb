@@ -37,6 +37,7 @@ data Project = Project
   , _projectStakeholders :: [Entity D.Person]
   , _projectTargetDates  :: [TargetDate]
   , _projectEffortDays   :: Double
+  , _projectPriority     :: Int
   , _projectStarted      :: Day
   , _projectFinished     :: Maybe Day
   , _projectNotes        :: [Entity D.ProjectNote]

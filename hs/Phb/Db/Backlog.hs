@@ -1,21 +1,36 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Rank2Types        #-}
+{-# LANGUAGE TemplateHaskell   #-}
 module Phb.Db.Backlog where
 
-import BasePrelude hiding (on)
+import BasePrelude hiding (insert, on)
 import Prelude     ()
 
+import           Control.Lens        hiding (from, (^.))
 import qualified Control.Lens        as L
 import           Control.Monad.Trans (MonadIO)
 import           Data.Text           (Text)
-import           Data.Time           (UTCTime)
+import qualified Data.Text           as T
+import           Data.Time           (UTCTime, utctDay)
 import           Database.Esqueleto
+import qualified Database.Persist    as P
 
 import           Phb.Db.Enums
 import           Phb.Db.Esqueleto
 import           Phb.Db.Internal
+import           Phb.Db.Project
 import qualified Phb.Types.Backlog as T
+
+data BacklogInput = BacklogInput
+  { _backlogInputName         :: Text
+  , _backlogInputStatus       :: BacklogStatusEnum
+  , _backlogInputPriority     :: Int
+  , _backlogInputNote         :: Text
+  , _backlogInputCustomers    :: [Key Customer]
+  , _backlogInputStakeholders :: [Key Person]
+  }
+makeLenses ''BacklogInput
 
 backlogStatusHuman :: BacklogStatusEnum -> Text
 backlogStatusHuman BacklogScoped = "Scoped"
@@ -42,6 +57,7 @@ loadBacklog d (Entity bId b) = do
   return $ T.Backlog
     bId
     (b L.^. backlogName)
+    (b L.^. backlogPriority)
     cs
     ss
     ps
@@ -59,7 +75,7 @@ loadActiveBacklog = loadByStatus
   BacklogStatusBacklog
   BacklogStatusStart
   BacklogStatusFinish
-  (\ r _ -> [asc (r ^. BacklogId)])
+  (\ r _ -> [desc (r ^. BacklogPriority)])
   (\ _ rs -> (rs ^. BacklogStatusStatus) `in_` (valList activeBacklogStatuses))
 
 activeBacklogStatuses :: [BacklogStatusEnum]
@@ -68,3 +84,83 @@ activeBacklogStatuses =
   , BacklogNeedsScoping
   , BacklogInCommercials
   ]
+
+upsertBacklog
+  :: (MonadIO m, Applicative m)
+  => BacklogInput
+  -> UTCTime
+  -> Maybe (Key Backlog)
+  -> Db m (Key Backlog)
+upsertBacklog x cd kMay = do
+  case kMay of
+   Nothing -> P.insert (newBacklog x) >>= updateSatellites
+   Just k  -> P.replace k (newBacklog x) >> updateSatellites k
+
+  where
+    newBacklog (BacklogInput n _ p _ _ _) = Backlog n p
+    updateSatellites k = do
+      updateSatellite k (x L.^.backlogInputCustomers)
+        BacklogCustomerBacklog
+        BacklogCustomerId
+        BacklogCustomerCustomer
+        backlogCustomerCustomer
+        BacklogCustomer
+      updateSatellite k (x L.^.backlogInputStakeholders)
+        BacklogPersonBacklog
+        BacklogPersonId
+        BacklogPersonPerson
+        backlogPersonPerson
+        BacklogPerson
+
+      updateStatus k cd (view backlogInputStatus x)
+
+      insertTemporal k
+        BacklogNoteStart
+        BacklogNoteFinish
+        BacklogNoteId
+        BacklogNoteBacklog
+        (view backlogNoteNote)
+        cd
+        (BacklogNote k (x L.^.backlogInputNote) cd Nothing)
+
+      return k
+
+updateStatus
+  :: (MonadIO m, Functor m)
+  => Key Backlog
+  -> UTCTime
+  -> BacklogStatusEnum
+  -> SqlPersistT m ()
+updateStatus k cd s =
+  insertTemporal k
+    BacklogStatusStart
+    BacklogStatusFinish
+    BacklogStatusId
+    BacklogStatusBacklog
+    (view backlogStatusStatus)
+    cd
+    (BacklogStatus k cd Nothing s)
+
+promoteBacklog
+  :: (MonadIO m,Applicative m)
+  => UTCTime
+  -> Entity Backlog
+  -> Db m (Key Project)
+promoteBacklog ct e = do
+  b <- loadBacklog ct e
+  newP <- upsertProjectInput (mkPrjInput b) ct Nothing
+  updateStatus (entityKey e) ct BacklogProjectStarted
+  pure newP
+  where
+    mkPrjInput i = ProjectInput
+      (i L.^.T.backlogName)
+      "Development"
+      StatusGreen
+      Nothing
+      (utctDay ct)
+      Nothing
+      (i L.^.T.backlogPriority)
+      (T.unlines (i L.^..T.backlogNotes.traverse.eVal.backlogNoteNote))
+      []
+      (i L.^..T.backlogCustomers.traverse.eKey)
+      (i L.^..T.backlogStakeholders.traverse.eKey)

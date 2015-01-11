@@ -73,7 +73,8 @@ ActionPerson
   UniqueActionPerson action person
   deriving Show
 Backlog
-  name   Text
+  name     Text
+  priority Int
   deriving Show
 BacklogCustomer
   backlog   BacklogId
@@ -153,6 +154,7 @@ HeartbeatProject
   deriving Show
 Project
   name     Text
+  priority Int
   started  Day
   finished Day Maybe
   deriving Show

@@ -4,16 +4,16 @@
 {-# LANGUAGE TupleSections    #-}
 module Phb.Db.TimeLog where
 
-import           BasePrelude         hiding (on)
-import           Prelude             ()
+import BasePrelude hiding (on)
+import Prelude     ()
 
 import qualified Control.Lens        as L
 import           Control.Monad.Trans (MonadIO)
 import           Data.Time           (Day)
 import           Database.Esqueleto
 
-import           Phb.Db.Internal
-import           Phb.Types.TimeLog
+import Phb.Db.Internal
+import Phb.Types.TimeLog
 
 loadTimeLogWhole
   :: (MonadIO m, Applicative m)
@@ -28,28 +28,23 @@ loadTimeLogWhole twe = do
   aLink <- loadLink tw actionName timeLogAction ActionLink
   wcLink <- loadLink tw workCategoryName timeLogCategory WorkCategoryLink
   let lLink = pLink <|> eLink <|> bLink <|> aLink <|> wcLink
-  pure (TimeLogWhole twe p lLink)
+  pure (TimeLogWhole twe (Entity (tw L.^.timeLogPerson) p) lLink)
   where
     loadLink tw nl ll lc =
       fmap (\ (k,v) -> TimeLogLink (v L.^. nl) (lc k))
       <$>  traverse (\ k -> (k,) <$> getJust k) (tw L.^. ll)
 
-loadSupportTimeLogs
+loadTimeLogsForPeriod
   :: (MonadIO m, Applicative m)
   => Day
   -> Day
-  -> SqlPersistT m [(Entity TimeLog,Entity WorkCategory,Entity Person)]
-loadSupportTimeLogs s f = fmap sadness <$> logs
+  -> Db m [TimeLogWhole]
+loadTimeLogsForPeriod s f = logs >>= traverse loadTimeLogWhole
   where
-    -- T_T
-    sadness (tl,Just wc,p) = (tl,wc,p)
-    sadness _              = undefined
     logs =
-      select $ from $ \ (p `InnerJoin` tl `InnerJoin` wc) -> do
-        on (tl ^. TimeLogCategory ==. (wc ?. WorkCategoryId))
-        on (tl ^. TimeLogPerson ==. (p ^. PersonId))
+      select $ from $ \ (tl) -> do
         where_ (tl ^. TimeLogDay >=. val s &&. tl ^. TimeLogDay <=. val f)
-        return (tl,wc,p)
+        return tl
 
 
 mkLinkOptions

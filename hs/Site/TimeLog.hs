@@ -197,7 +197,7 @@ timeLogFormSplices rts = do
 timeLogSplices :: Splices (PhbRuntimeSplice (TimeLogWhole) -> PhbSplice)
 timeLogSplices = mapV (C.pureSplice . C.textSplice) $ do
   "personId"    ## (^.timeLogWholeLog.eVal.timeLogPerson.to spliceKey)
-  "username"    ## (^.timeLogWholePerson . personName)
+  "username"    ## (^.timeLogWholePerson.eVal.personName)
   "day"         ## (^.timeLogWholeLog.eVal.timeLogDay.to spliceDay)
   "minutes"     ## (^.timeLogWholeLog.eVal.timeLogMinutes.to show.from unpacked)
   "timeAgainst" ## (^.timeLogWholeLink._Just.timeLogLinkName )

@@ -2,13 +2,14 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Site.Backlog where
 
-import           BasePrelude                   hiding (insert)
-import           Prelude                       ()
+import BasePrelude hiding (insert)
+import Prelude     ()
 
 import           Control.Lens
 import           Control.Monad.Trans           (lift, liftIO)
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
+import           Data.Text.Encoding            (encodeUtf8)
 import           Data.Time                     (getCurrentTime)
 import           Database.Persist.Sql
 import           Heist
@@ -22,24 +23,24 @@ import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
 import           Phb.Db
-import qualified Phb.Types.Backlog             as T
+import qualified Phb.Types.Backlog as T
+import           Phb.Util
 import           Site.Internal
+
+handlePromotion :: PhbHandler ()
+handlePromotion = do
+  ct <- liftIO $ getCurrentTime
+  e  <- requireEntity "backlog" "id"
+  p  <- runPersist $ promoteBacklog ct e
+  redirect $ "/projects/" <> encodeUtf8 (keyToText p) <> "/edit"
 
 backlogRoutes :: PhbRoutes
 backlogRoutes =
   [("/backlog",ifTop . userOrIndex . render $ "backlog/all")
   ,("/backlog/create",ifTop . userOrIndex . render $ "backlog/create")
   ,("/backlog/:id/edit",ifTop . userOrIndex . render $ "backlog/edit")
+  ,("/backlog/:id/promote", ifTop handlePromotion )
   ]
-
-data BacklogInput = BacklogInput
-  { _backlogInputName         :: Text
-  , _backlogInputStatus       :: BacklogStatusEnum
-  , _backlogInputNote         :: Text
-  , _backlogInputCustomers    :: [Key Customer]
-  , _backlogInputStakeholders :: [Key Person]
-  }
-makeLenses ''BacklogInput
 
 -- TODO: We should be able to clean this up by using monadic to load
 -- up the select list options.
@@ -47,13 +48,15 @@ backlogForm :: Maybe (T.Backlog) -> [(Key Customer,Text)] -> [(Key Person,Text)]
 backlogForm e cs ps = BacklogInput
   <$> "name"         .: check nameErrMsg isNotEmpty (text name)
   <*> "status"       .: choice statusOpts status
+  <*> "priority"     .: stringRead "Priority must be an int" priority
   <*> "notes"        .: text notes
   <*> "customers"    .: listOf (choice cs) customers
   <*> "stakeholders" .: listOf (choice ps) stakeholders
   where
-    name    = e ^?_Just.T.backlogName
-    status  = e ^?_Just.T.backlogStatusLatest.eVal.backlogStatusStatus
-    notes = e ^?_Just.T.backlogNoteLatest.eVal.backlogNoteNote
+    name     = e ^?_Just.T.backlogName
+    priority = e ^?_Just.T.backlogPriority
+    status   = e ^?_Just.T.backlogStatusLatest.eVal.backlogStatusStatus
+    notes    = e ^?_Just.T.backlogNoteLatest.eVal.backlogNoteNote
     customers = e ^?_Just.T.backlogCustomers.to (fmap entityKey)
     stakeholders = e ^?_Just.T.backlogStakeholders.to (fmap entityKey)
     nameErrMsg = "Name must not be empty"
@@ -81,50 +84,11 @@ backlogFormSplices rts = do
       Nothing -> C.putPromise promise v >> C.codeGen out
   where
     createBacklog x cd kMay = do
-      -- Should probably change this so that a DB error wouldn't just
-      -- Crash us and should put a nice error in the form.
+      void . runPersist $ upsertBacklog x cd kMay
       case kMay of
-       Nothing -> do
-         void . runPersist $ do
-           insert (newBacklog x) >>= updateSatellites x cd
-         flashSuccess $ "Backlog Created"
-       Just k  -> do
-         void . runPersist $ do
-           replace k (newBacklog x) >> updateSatellites x cd k
-         flashSuccess $ "Backlog Updated"
+        Nothing -> flashSuccess "Backlog Created"
+        Just _  -> flashSuccess "Backlog Updated"
       redirect "/backlog"
-    newBacklog (BacklogInput n _ _ _ _) = Backlog n
-    updateSatellites x cd k = do
-      updateSatellite k (x ^. backlogInputCustomers)
-        BacklogCustomerBacklog
-        BacklogCustomerId
-        BacklogCustomerCustomer
-        backlogCustomerCustomer
-        BacklogCustomer
-      updateSatellite k (x ^. backlogInputStakeholders)
-        BacklogPersonBacklog
-        BacklogPersonId
-        BacklogPersonPerson
-        backlogPersonPerson
-        BacklogPerson
-
-      insertTemporal k
-        BacklogStatusStart
-        BacklogStatusFinish
-        BacklogStatusId
-        BacklogStatusBacklog
-        (view backlogStatusStatus)
-        cd
-        (BacklogStatus k cd Nothing (x^.backlogInputStatus))
-
-      insertTemporal k
-        BacklogNoteStart
-        BacklogNoteFinish
-        BacklogNoteId
-        BacklogNoteBacklog
-        (view backlogNoteNote)
-        cd
-        (BacklogNote k (x^.backlogInputNote) cd Nothing)
 
     customerChoiceOption (Entity k v) = (k,v ^. customerName)
     personChoiceOption (Entity k v) = (k,v ^. personName)

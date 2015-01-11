@@ -4,8 +4,8 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Phb.Db.Heartbeat where
 
-import           BasePrelude                hiding (insert)
-import           Prelude                    ()
+import BasePrelude hiding (insert)
+import Prelude     ()
 
 import           Control.Lens               hiding (Action)
 import           Control.Monad.IO.Class     (MonadIO)
@@ -19,15 +19,16 @@ import           Database.Persist.Sql       (SqlBackend)
 
 import           Phb.Db.Action
 import           Phb.Db.Backlog
-import           Phb.Db.Enums               ()
+import           Phb.Db.Enums        ()
 import           Phb.Db.Event
 import           Phb.Db.Internal
 import           Phb.Db.Person
 import           Phb.Db.Project
 import           Phb.Db.Success
 import           Phb.Db.TimeLog
-import qualified Phb.Types.Heartbeat        as T
-import qualified Phb.Types.Success          as T
+import qualified Phb.Types.Heartbeat as T
+import qualified Phb.Types.Success   as T
+import qualified Phb.Types.TimeLog   as T
 
 data HeartbeatInput = HeartbeatInput
   { _heartbeatInputStart      :: Day
@@ -53,9 +54,13 @@ loadHeartbeat (Entity hId h) = do
   as  <- loadRel HeartbeatActionHeartbeat heartbeatActionAction (loadAction ct)
   sss <- selectList [SuccessHeartbeat          ==. hId] []
   ss  <- traverse success sss
-  stl <- loadSupportTimeLogs s f
+  stl <- loadTimeLogsForPeriod s f
+  prev <- fmap entityKey <$> lastHeartbeat s
+  next <- fmap entityKey <$> nextHeartbeat f
   return $ T.Heartbeat
     hId
+    prev
+    next
     (h ^. heartbeatStart)
     (h ^. heartbeatFinish)
     (T.lines . view heartbeatUpcomingEvents $ h)
@@ -80,7 +85,7 @@ loadHeartbeat (Entity hId h) = do
       traverse ((load =<<) . getEntityJust . (^. eVal . relIdL)) rels
 
     supportLogSummary =
-      fmap (\ (k,(hs,ps)) -> T.HeartbeatSupport k (getSum hs) ps)
+      fmap (\ (k,(hs,ps)) -> T.HeartbeatTimeLog k (getSum hs) ps)
       . sortBy (compare `on` (fst . snd))
       . M.toList
       . foldl' accumTimeLogSummaryMap M.empty
@@ -88,12 +93,26 @@ loadHeartbeat (Entity hId h) = do
     accumTimeLogSummaryMap m tls =
       M.insertWith (<>) (supportLogSummaryLabel tls) (supportLogSummaryVal tls) m
 
-    supportLogSummaryVal (tl,_,p) =
+    supportLogSummaryVal (T.TimeLogWhole tl p _) =
       ( tl^.eVal.timeLogMinutes.to fromIntegral.to (/60.0).to Sum
       , [p]
       )
 
-    supportLogSummaryLabel = (^._2.eVal.workCategoryName)
+    supportLogSummaryLabel = (^.T.timeLogWholeLink._Just.T.timeLogLinkName)
+
+nextHeartbeat
+  :: (MonadIO m, Functor m)
+  => Day
+  -> ReaderT SqlBackend m (Maybe (Entity Heartbeat))
+nextHeartbeat cd =
+  selectFirst [HeartbeatStart >=. cd] [Asc HeartbeatFinish]
+
+lastHeartbeat
+  :: (MonadIO m, Functor m)
+  => Day
+  -> ReaderT SqlBackend m (Maybe (Entity Heartbeat))
+lastHeartbeat cd =
+  selectFirst [HeartbeatFinish <=. cd] [Desc HeartbeatFinish]
 
 loadCustomerNames :: (MonadIO m, Functor m)
   => [Key Customer]

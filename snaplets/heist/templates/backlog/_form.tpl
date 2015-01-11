@@ -69,6 +69,14 @@
     </div>
   </div>
   <div class="form-group">
+    <dfLabel ref="priority" class="col-sm-2 control-label">
+      Priority:
+    </dfLabel>
+    <div class="col-sm-2">
+      <dfInput type="number" ref="priority" class="form-control"/>
+    </div>
+  </div>
+  <div class="form-group">
     <dfLabel ref="notes" class="col-sm-2 control-label">
       Notes:
     </dfLabel>

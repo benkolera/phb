@@ -26,7 +26,7 @@ makeLenses ''TimeLogLink
 
 data TimeLogWhole = TimeLogWhole
   { _timeLogWholeLog    :: Entity TimeLog
-  , _timeLogWholePerson :: Person
+  , _timeLogWholePerson :: Entity Person
   , _timeLogWholeLink   :: Maybe TimeLogLink
   }
 makeLenses ''TimeLogWhole

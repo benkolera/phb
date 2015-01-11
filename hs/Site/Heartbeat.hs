@@ -2,8 +2,8 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Site.Heartbeat where
 
-import           BasePrelude                             hiding (insert)
-import           Prelude                                 ()
+import BasePrelude hiding (insert)
+import Prelude     ()
 
 import           Blaze.ByteString.Builder.ByteString     (fromByteString)
 import           Blaze.ByteString.Builder.Internal.Types (Builder)
@@ -13,9 +13,11 @@ import qualified Data.ByteString.Char8                   as B
 import           Data.Map.Syntax
 import           Data.Text                               (Text)
 import qualified Data.Text                               as Text
+import           Data.Text.Encoding                      (encodeUtf8)
 import           Data.Text.Lens                          (unpacked)
-import           Data.Time                               (UTCTime,
-                                                          getCurrentTime)
+import           Data.Time                               (UTCTime, addDays,
+                                                          getCurrentTime,
+                                                          utctDay)
 import           Database.Persist.Sql
 import           Heist
 import qualified Heist.Compiled                          as C
@@ -29,40 +31,43 @@ import           Text.Digestive.Snap
 import           Text.XmlHtml                            (Node (..))
 
 import           Phb.Db
-import qualified Phb.Types                               as T
-import           Site.Backlog                            (backlogRowSplice)
-import           Site.Event                              (eventRowSplice)
+import qualified Phb.Types     as T
+import           Site.Backlog  (backlogRowSplice)
+import           Site.Event    (eventRowSplice)
 import           Site.Internal
-import           Site.Project                            (projectRowSplice)
+import           Site.Project  (projectRowSplice)
 
 heartbeatRoutes :: PhbRoutes
 heartbeatRoutes =
   [ ("heartbeats",ifTop . userOrIndex . render $ "heartbeats/all")
   , ("/heartbeats/create",ifTop . userOrIndex . render $ "heartbeats/create")
   , ("/heartbeats/:id/edit",ifTop . userOrIndex . render $ "heartbeats/edit")
-  , ("/heartbeats/:id",ifTop . userOrIndex . render $ "heartbeats/view")
+  , ("/heartbeats/:id",ifTop . render $ "heartbeats/view")
   ]
 
 -- TODO: Taking a T.Heartbeat instead of a HeartbeatInput is kinda off
 heartbeatForm :: UTCTime -> Maybe (T.Heartbeat) -> PhbForm Text HeartbeatInput
 heartbeatForm ct e = monadic $ do
-  (as,bs,es,prjs,ss) <- runPersist $ (,,,,)
+  (as,bs,es,prjs,ss,lhb) <- runPersist $ (,,,,,)
     <$> (choiceOpts actionName  <$> loadActiveActions ct)
     <*> (choiceOpts backlogName <$> loadActiveBacklog ct)
     <*> (choiceOpts eventName   <$> loadActiveEvents ct)
     <*> (choiceOpts projectName <$> loadActiveProjects ct)
     <*> (traverse (traverse successInput) successes)
+    <*> lastHeartbeat (utctDay ct)
   return $ HeartbeatInput
-    <$> "start"      .: html5DateFormlet start
-    <*> "finish"     .: html5DateFormlet finish
+    <$> "start"      .: html5DateFormlet (start <|> (lhbStart lhb))
+    <*> "finish"     .: html5DateFormlet (finish <|> Just (utctDay ct))
     <*> "upcoming"   .: listOf (neText upcomingErrMsg) upcoming
     <*> "highlights" .: listOf (neText highlightErrMsg) highlights
     <*> "successes"  .: listOf successForm ss
-    <*> "actions"    .: listOf (choice as) actions
-    <*> "backlog"    .: listOf (choice bs) backlog
-    <*> "events"     .: listOf (choice es) events
-    <*> "projects"   .: listOf (choice prjs) projects
+    <*> "actions"    .: defListOf as actions
+    <*> "backlog"    .: defListOf bs backlog
+    <*> "events"     .: defListOf es events
+    <*> "projects"   .: defListOf prjs projects
   where
+    defListOf xs curr = listOf (choice xs) (curr <|> Just (fmap fst xs))
+    lhbStart   = (^?_Just.eVal.heartbeatFinish.to (addDays 1))
     start      = e^?_Just.T.heartbeatStart
     finish     = e^?_Just.T.heartbeatFinish
     upcoming   = e^?_Just.T.heartbeatUpcoming
@@ -163,14 +168,26 @@ actionRowSplice = rowSplice (ts <> ss)
       "customers" ## spliceLines . fmap (^..T.actionCustomers.traverse.eVal.customerName)
       "notes"     ## spliceLines . fmap (^. T.actionNoteLatest.eVal.actionNoteNote.to Text.lines)
 
-supportRowSplice :: PhbRuntimeSplice [T.HeartbeatSupport] -> PhbSplice
-supportRowSplice = rowSplice (ts <> ss) . fmap (filter (^.T.heartbeatSupportHours.to (>= 0.5)))
+timeLogDataSplice :: PhbRuntimeSplice [T.HeartbeatTimeLog] -> PhbSplice
+timeLogDataSplice rts = do
+  so <- pure . C.yieldPure $ fromByteString "<script>\nvar timeLogData=["
+  js <- return $ C.yieldRuntime $ do
+    s <- rts
+    return
+      . fromByteString
+      . B.intercalate ","
+      . fmap timeLogWholeJson
+      . filter ((>= 0.5) . view T.heartbeatTimeLogHours)$ s
+  sc <- pure . C.yieldPure $ fromByteString "];\n</script>"
+  return . fold $ [so,js,sc]
   where
-    ts = mapV (C.pureSplice . C.textSplice) $ do
-      "label" ## (^.T.heartbeatSupportLabel)
-      "hours" ## (^.T.heartbeatSupportHours.to showText)
-    ss = do
-      "people" ## spliceLines . fmap (^..T.heartbeatSupportPeople.traverse.eVal.personName)
+    timeLogWholeJson tlw = fold
+      [ "{value: "
+      , tlw^.T.heartbeatTimeLogHours.to show.to B.pack
+      , ", label: '"
+      , tlw^.T.heartbeatTimeLogLabel.to encodeUtf8
+      , "'}"
+      ]
 
 successRowSplice :: PhbRuntimeSplice [T.Success] -> PhbSplice
 successRowSplice = rowSplice (ts <> ss)
@@ -199,15 +216,23 @@ wholeHeartbeatSplices = C.withSplices C.runChildren (ss <> rs)
     ss = mapV (C.pureSplice . C.textSplice) $ do
       "start"           ## (^. T.heartbeatStart . to spliceDay)
       "finish"          ## (^. T.heartbeatFinish . to spliceDay)
+      "nextHref"        ## (^. T.heartbeatNextKey._Just.to projectLink)
+      "nextClass"       ## btnClass . (^. T.heartbeatNextKey)
+      "prevHref"        ## (^. T.heartbeatPrevKey._Just.to projectLink)
+      "prevClass"       ## btnClass . (^. T.heartbeatPrevKey)
+
     rs = do
       "highlights"     ## (spliceUl . (fmap (^. T.heartbeatHighlights)))
       "upcomingEvents" ## (spliceUl . (fmap (^. T.heartbeatUpcoming)))
-      "actionRow"     ## (actionRowSplice . fmap (^. T.heartbeatActions))
-      "successRow"    ## (successRowSplice . fmap (^. T.heartbeatSuccesses))
-      "projectRow"    ## (projectRowSplice . fmap (^. T.heartbeatProjects))
-      "backlogRow"    ## (backlogRowSplice . fmap (^. T.heartbeatBacklog))
-      "eventRow"      ## (eventRowSplice . fmap (^. T.heartbeatEvents))
-      "supportRow"    ## (supportRowSplice . fmap (^. T.heartbeatSupport))
+      "actionRow"      ## (actionRowSplice . fmap (^. T.heartbeatActions))
+      "successRow"     ## (successRowSplice . fmap (^. T.heartbeatSuccesses))
+      "projectRow"     ## (projectRowSplice . fmap (^. T.heartbeatProjects))
+      "backlogRow"     ## (backlogRowSplice . fmap (^. T.heartbeatBacklog))
+      "eventRow"       ## (eventRowSplice . fmap (^. T.heartbeatEvents))
+      "timeLogData"    ## (timeLogDataSplice . fmap (^. T.heartbeatTimeLogs))
+    btnClass Nothing = "disabled"
+    btnClass _       = ""
+    projectLink k    = "/heartbeats/" <> spliceKey k
 
 latestHeartbeatSplice :: PhbSplice
 latestHeartbeatSplice = do

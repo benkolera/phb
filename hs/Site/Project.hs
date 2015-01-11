@@ -3,16 +3,15 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Site.Project where
 
-import           BasePrelude                   hiding (bool, index, insert,
-                                                phase)
-import           Prelude                       ()
+import BasePrelude hiding (bool, index, insert, phase)
+import Prelude     ()
 
 import           Control.Lens
 import           Control.Monad.Trans           (lift, liftIO)
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
 import           Data.Text.Lens                (unpacked)
-import           Data.Time                     (Day, getCurrentTime)
+import           Data.Time                     (getCurrentTime)
 import           Database.Persist.Sql
 import           Heist
 import qualified Heist.Compiled                as C
@@ -25,7 +24,7 @@ import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
 import           Phb.Db
-import qualified Phb.Types.Project             as T
+import qualified Phb.Types.Project as T
 import           Site.Internal
 
 projectRoutes :: PhbRoutes
@@ -36,19 +35,6 @@ projectRoutes =
   ]
 
 
-data ProjectInput = ProjectInput
-  { _projectInputName         :: Text
-  , _projectInputStatusPhase  :: Text
-  , _projectInputStatusColor  :: StatusColourEnum
-  , _projectInputStatusDesc   :: Maybe Text
-  , _projectInputStarted      :: Day
-  , _projectInputFinished     :: Maybe Day
-  , _projectInputNote         :: Text
-  , _projectTargets           :: [T.TargetDate]
-  , _projectInputCustomers    :: [Key Customer]
-  , _projectInputStakeholders :: [Key Person]
-  }
-makeLenses ''ProjectInput
 
 -- TODO: We should be able to clean this up by using monadic to load
 -- up the select list options.
@@ -60,18 +46,20 @@ projectForm e cs ps = ProjectInput
   <*> "statusDesc"   .: optionalText statusD
   <*> "started"      .: html5DateFormlet started
   <*> "finished"     .: html5OptDateFormlet finished
+  <*> "priority"     .: stringRead "Priority must be an int" priority
   <*> "notes"        .: text notes
   <*> "targets"      .: listOf targetFormlet targets
   <*> "customers"    .: listOf (choice cs) customers
   <*> "stakeholders" .: listOf (choice ps) stakeholders
   where
-    latestS = e ^?_Just.T.projectStatusLatest
-    latestN = e ^?_Just.T.projectNoteLatest.eVal
-    name    = e ^?_Just.T.projectName
-    phase   = latestS ^?_Just.T.projectStatusPhase
-    statusD = latestS ^?_Just.T.projectStatusDesc._Just
-    statusC = latestS ^?_Just.T.projectStatusColour
-    started = e ^?_Just.T.projectStarted
+    latestS  = e ^?_Just.T.projectStatusLatest
+    latestN  = e ^?_Just.T.projectNoteLatest.eVal
+    name     = e ^?_Just.T.projectName
+    priority = e ^?_Just.T.projectPriority
+    phase    = latestS ^?_Just.T.projectStatusPhase
+    statusD  = latestS ^?_Just.T.projectStatusDesc._Just
+    statusC  = latestS ^?_Just.T.projectStatusColour
+    started  = e ^?_Just.T.projectStarted
     finished = e ^?_Just.T.projectFinished._Just
     notes = latestN ^?_Just.projectNoteNote
     targets = e ^?_Just.T.projectTargetDates
@@ -114,66 +102,11 @@ projectFormSplices rts = do
       Nothing -> C.putPromise promise v >> C.codeGen out
   where
     createProject x cd kMay = do
-      -- Should probably change this so that a DB error wouldn't just
-      -- Crash us and should put a nice error in the form.
+      void . runPersist $ upsertProjectInput x cd kMay
       case kMay of
-       Nothing -> do
-         void . runPersist $ do
-           insert (newProject x) >>= updateSatellites x cd
-         flashSuccess $ "Project Created"
-       Just k  -> do
-         void . runPersist $ do
-           replace k (newProject x) >> updateSatellites x cd k
-         flashSuccess $ "Project Updated"
+        Nothing -> flashSuccess "Project Created"
+        Just _  -> flashSuccess "Project Updated"
       redirect "/projects"
-    newProject (ProjectInput n _ _ _ s f _ _ _ _) =
-      Project n s f
-    updateSatellites x cd k = do
-      updateSatellite k (x ^. projectInputCustomers)
-        ProjectCustomerProject
-        ProjectCustomerId
-        ProjectCustomerCustomer
-        projectCustomerCustomer
-        ProjectCustomer
-      updateSatellite k (x ^. projectInputStakeholders)
-        ProjectPersonProject
-        ProjectPersonId
-        ProjectPersonPerson
-        projectPersonPerson
-        ProjectPerson
-
-      deleteWhere [ProjectTargetDateProject ==. k]
-      traverse_ (insert . inputTargetToDb k) (x ^. projectTargets)
-
-      insertTemporal k
-        ProjectStatusStart
-        ProjectStatusFinish
-        ProjectStatusId
-        ProjectStatusProject
-        fuzzyStatus
-        cd $
-          ProjectStatus k cd Nothing
-            (x ^. projectInputStatusPhase)
-            (x ^. projectInputStatusColor)
-            (x ^. projectInputStatusDesc)
-
-      insertTemporal k
-        ProjectNoteStart
-        ProjectNoteFinish
-        ProjectNoteId
-        ProjectNoteProject
-        (view projectNoteNote)
-        cd
-        (ProjectNote k (x ^. projectInputNote) cd Nothing)
-
-    fuzzyStatus = (,,)
-      <$> view projectStatusPhase
-      <*> view projectStatusColour
-      <*> view projectStatusDesc
-
-    inputTargetToDb k (T.TargetDate dy ds hw) =
-      ProjectTargetDate k ds dy hw
-
     customerChoiceOption (Entity k v) = (k,v ^. customerName)
     personChoiceOption (Entity k v) = (k,v ^. personName)
 
@@ -217,7 +150,7 @@ listProjectsSplices =
     . lift $ do
   ct <- liftIO $ getCurrentTime
   runPersist $ do
-    es <- selectList [] [Desc ProjectStarted]
+    es <- selectList [] [Desc ProjectId]
     traverse (loadProject ct) $ es
 
 createProjectSplices :: PhbSplice

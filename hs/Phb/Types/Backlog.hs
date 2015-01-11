@@ -15,6 +15,7 @@ import qualified Phb.Db.Internal as D
 data Backlog = Backlog
   { _backlogKey          :: Key D.Backlog
   , _backlogName         :: Text
+  , _backlogPriority     :: Int
   , _backlogCustomers    :: [Entity D.Customer]
   , _backlogStatuses     :: [Entity D.BacklogStatus]
   , _backlogStakeholders :: [Entity D.Person]

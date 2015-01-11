@@ -20,6 +20,8 @@
     "bootstrap": "~3.3.1",
     "font-awesome": "~4.2.0",
     "chartjs": "~1.0.1",
-    "pleasejs": "~0.4.2"
+    "pleasejs": "~0.4.2",
+    "purescript-canvas": "~0.2.0",
+    "purescript-jquery": "~0.3.0"
   }
 }
