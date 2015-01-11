@@ -83,7 +83,7 @@ loadHeartbeat (Entity hId h) = do
         what
         (T.lines achievments)
     loadRel relHbCol relIdL relXFk xId priorityCol load = do
-      rels <- select $ from $ \ (rel,x) -> do
+      rels <- select $ from $ \ (rel `InnerJoin` x) -> do
         on (rel^.relXFk ==. x^.xId)
         where_ (rel^.relHbCol ==. val hId)
         orderBy [desc $ priorityCol x]
