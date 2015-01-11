@@ -7,15 +7,16 @@ module Phb.Db.Heartbeat where
 import BasePrelude hiding (insert)
 import Prelude     ()
 
-import           Control.Lens               hiding (Action)
+import           Control.Lens               hiding (Action, from, (^.))
+import qualified Control.Lens               as L
 import           Control.Monad.IO.Class     (MonadIO)
 import           Control.Monad.Trans.Reader (ReaderT)
 import qualified Data.Map                   as M
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import           Data.Time                  (Day, UTCTime (..))
-import           Database.Persist
-import           Database.Persist.Sql       (SqlBackend)
+import           Database.Esqueleto         hiding (on)
+import qualified Database.Persist           as P
 
 import           Phb.Db.Action
 import           Phb.Db.Backlog
@@ -45,14 +46,14 @@ makeLenses ''HeartbeatInput
 
 loadHeartbeat :: (MonadIO m, Applicative m) => Entity Heartbeat -> Db m T.Heartbeat
 loadHeartbeat (Entity hId h) = do
-  let s  = h^.heartbeatStart
-  let f  = h^.heartbeatFinish
+  let s  = h L.^.heartbeatStart
+  let f  = h L.^.heartbeatFinish
   let ct = UTCTime f 86400
-  ps  <- loadRel HeartbeatProjectHeartbeat heartbeatProjectProject (loadProject ct)
-  es  <- loadRel HeartbeatEventHeartbeat heartbeatEventEvent (loadEvent ct)
-  bs  <- loadRel HeartbeatBacklogHeartbeat heartbeatBacklogBacklog (loadBacklog ct)
-  as  <- loadRel HeartbeatActionHeartbeat heartbeatActionAction (loadAction ct)
-  sss <- selectList [SuccessHeartbeat          ==. hId] []
+  ps  <- loadRel HeartbeatProjectHeartbeat heartbeatProjectProject (^.ProjectPriority) (loadProject ct)
+  es  <- loadRel HeartbeatEventHeartbeat heartbeatEventEvent (^.EventId) (loadEvent ct)
+  bs  <- loadRel HeartbeatBacklogHeartbeat heartbeatBacklogBacklog (^.BacklogPriority) (loadBacklog ct)
+  as  <- loadRel HeartbeatActionHeartbeat heartbeatActionAction (^.ActionId) (loadAction ct)
+  sss <- P.selectList [SuccessHeartbeat P.==. hId] []
   ss  <- traverse success sss
   stl <- loadTimeLogsForPeriod s f
   prev <- fmap entityKey <$> lastHeartbeat s
@@ -61,8 +62,8 @@ loadHeartbeat (Entity hId h) = do
     hId
     prev
     next
-    (h ^. heartbeatStart)
-    (h ^. heartbeatFinish)
+    (h L.^. heartbeatStart)
+    (h L.^. heartbeatFinish)
     (T.lines . view heartbeatUpcomingEvents $ h)
     (T.lines . view heartbeatHighlights $ h)
     ss
@@ -80,9 +81,12 @@ loadHeartbeat (Entity hId h) = do
         ps
         what
         (T.lines achievments)
-    loadRel relHbCol relIdL load = do
-      rels <- selectList [relHbCol ==. hId] []
-      traverse ((load =<<) . getEntityJust . (^. eVal . relIdL)) rels
+    loadRel relHbCol relIdL priorityCol load = do
+      rels <- select $ from $ \ (rel,x) -> do
+        where_ (rel^.relHbCol ==. val hId)
+        orderBy [desc $ priorityCol x]
+        return rel
+      traverse ((load =<<) . getEntityJust . (L.^. eVal . relIdL)) rels
 
     supportLogSummary =
       fmap (\ (k,(hs,ps)) -> T.HeartbeatTimeLog k (getSum hs) ps)
@@ -95,39 +99,39 @@ loadHeartbeat (Entity hId h) = do
       M.insertWith (<>) (supportLogSummaryLabel tls) (supportLogSummaryVal tls) m
 
     supportLogSummaryVal (T.TimeLogWhole tl p _) =
-      ( tl^.eVal.timeLogMinutes.to fromIntegral.to (/60.0).to Sum
+      ( tl L.^.eVal.timeLogMinutes.to fromIntegral.to (/60.0).to Sum
       , [p]
       )
 
-    supportLogSummaryLabel = (^.T.timeLogWholeLink._Just.T.timeLogLinkName)
+    supportLogSummaryLabel = (L.^.T.timeLogWholeLink._Just.T.timeLogLinkName)
 
 nextHeartbeat
   :: (MonadIO m, Functor m)
   => Day
   -> ReaderT SqlBackend m (Maybe (Entity Heartbeat))
 nextHeartbeat cd =
-  selectFirst [HeartbeatStart >=. cd] [Asc HeartbeatFinish]
+  P.selectFirst [HeartbeatStart P.>=. cd] [P.Asc HeartbeatFinish]
 
 lastHeartbeat
   :: (MonadIO m, Functor m)
   => Day
   -> ReaderT SqlBackend m (Maybe (Entity Heartbeat))
 lastHeartbeat cd =
-  selectFirst [HeartbeatFinish <=. cd] [Desc HeartbeatFinish]
+  P.selectFirst [HeartbeatFinish P.<=. cd] [P.Desc HeartbeatFinish]
 
 loadCustomerNames :: (MonadIO m, Functor m)
   => [Key Customer]
   -> ReaderT SqlBackend m [Text]
 loadCustomerNames cIds =
   fmap (view customerName . entityVal)
-  <$> selectList  [CustomerId <-. cIds] []
+  <$> P.selectList  [CustomerId P.<-. cIds] []
 
 loadPeopleNames :: (MonadIO m, Functor m)
   => [Key Person]
   -> ReaderT SqlBackend m [Text]
 loadPeopleNames pIds =
   fmap (view personName . entityVal)
-  <$> selectList  [PersonId <-. pIds] []
+  <$> P.selectList  [PersonId P.<-. pIds] []
 
 upsertHeartbeat :: (Applicative m, MonadIO m) => HeartbeatInput -> Maybe (Key Heartbeat) -> Db m (Key Heartbeat)
 upsertHeartbeat x kMay = do
@@ -141,29 +145,29 @@ upsertHeartbeat x kMay = do
       Heartbeat s f (T.unlines u) (T.unlines h)
 
     updateSatellites k = do
-      upsertHeartbeatSuccesses k (x^.heartbeatInputSuccesses)
-      updateSatellite k (x ^. heartbeatInputActions)
+      upsertHeartbeatSuccesses k (x L.^.heartbeatInputSuccesses)
+      updateSatellite k (x L.^.heartbeatInputActions)
         HeartbeatActionHeartbeat
         HeartbeatActionId
         HeartbeatActionAction
         heartbeatActionAction
         HeartbeatAction
 
-      updateSatellite k (x ^. heartbeatInputBacklog)
+      updateSatellite k (x L.^. heartbeatInputBacklog)
         HeartbeatBacklogHeartbeat
         HeartbeatBacklogId
         HeartbeatBacklogBacklog
         heartbeatBacklogBacklog
         HeartbeatBacklog
 
-      updateSatellite k (x ^. heartbeatInputEvents)
+      updateSatellite k (x L.^. heartbeatInputEvents)
         HeartbeatEventHeartbeat
         HeartbeatEventId
         HeartbeatEventEvent
         heartbeatEventEvent
         HeartbeatEvent
 
-      updateSatellite k (x ^. heartbeatInputProjects)
+      updateSatellite k (x L.^. heartbeatInputProjects)
         HeartbeatProjectHeartbeat
         HeartbeatProjectId
         HeartbeatProjectProject
