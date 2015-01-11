@@ -5,8 +5,14 @@
       </div>
       <div class="col-sm-3">
         <div class="pull-right" style="padding-top: 20px">
-          <a class="btn btn-sm btn-default ${prevClass}" href="${prevHref}">Prev Heartbeat</a>
-          <a class="btn btn-sm btn-default ${nextClass}" href="${nextHref}">Next Heartbeat</a>
+          <a class="btn btn-xs btn-default ${prevClass}" href="${prevHref}">
+            <i class="fa fa-backward hidden-sm hidden-xs" />
+            Prev Heartbeat
+          </a>
+          <a class="btn btn-xs btn-default ${nextClass}" href="${nextHref}">
+            Next Heartbeat
+            <i class="fa fa-forward hidden-sm hidden-xs" />
+          </a>
         </div>
       </div>
     </div>
