@@ -86,6 +86,7 @@ loadHeartbeat (Entity hId h) = do
 
     supportLogSummary =
       fmap (\ (k,(hs,ps)) -> T.HeartbeatTimeLog k (getSum hs) ps)
+      . reverse
       . sortBy (compare `on` (fst . snd))
       . M.toList
       . foldl' accumTimeLogSummaryMap M.empty
