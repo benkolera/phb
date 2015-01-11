@@ -6,6 +6,7 @@ import Data.Traversable
 import DOM
 import Graphics.Canvas
 import PleaseJs
+import TinyColor
 import ChartJs
 import Debug.Trace
 
@@ -28,5 +29,5 @@ heartbeatTimebreakdown canvasId dataz config = do
         { label     : d.label
         , value     : d.value
         , color     : c
-        , highlight : c
+        , highlight : (tinycolor >>> toHex $ c)
         }

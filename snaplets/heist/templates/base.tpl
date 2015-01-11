@@ -80,6 +80,7 @@
     <script src="/components/bootstrap/dist/js/bootstrap.min.js"></script>
     <script src="/components/chartjs/Chart.js"></script>
     <script src="/components/pleasejs/dist/Please.js"></script>
+    <script src="/components/tinycolor/tinycolor.js"></script>
     <script src="/js/digestive-functors-heist.js"></script>
     <script src="/js/phb.js"></script>
   </body>

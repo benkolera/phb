@@ -9,7 +9,7 @@ module.exports = function(grunt) {
         ],
         psc: {
             options: {
-                modules: ["Phb","PleaseJs"]
+                modules: ["Phb","PleaseJs","ChartJs","TinyColor"]
             },
             all: {
                 src: ["<%=srcFiles%>"],

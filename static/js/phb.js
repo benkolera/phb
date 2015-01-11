@@ -2,6 +2,9 @@
 var PS = PS || {};
 PS.Prelude = (function () {
     "use strict";
+    function Semigroupoid($less$less$less) {
+        this["<<<"] = $less$less$less;
+    };
     function Functor($less$dollar$greater) {
         this["<$>"] = $less$dollar$greater;
     };
@@ -28,6 +31,16 @@ PS.Prelude = (function () {
     var $less$greater = function (dict) {
         return dict["<>"];
     };
+    var $less$less$less = function (dict) {
+        return dict["<<<"];
+    };
+    var $greater$greater$greater = function (__dict_Semigroupoid_0) {
+        return function (f) {
+            return function (g) {
+                return $less$less$less(__dict_Semigroupoid_0)(g)(f);
+            };
+        };
+    };
     var $less$times$greater = function (dict) {
         return dict["<*>"];
     };
@@ -39,6 +52,15 @@ PS.Prelude = (function () {
         return function (x) {
             return f(x);
         };
+    };
+    var semigroupoidArr = function () {
+        return new Semigroupoid(function (f) {
+            return function (g) {
+                return function (x) {
+                    return f(g(x));
+                };
+            };
+        });
     };
     var pure = function (dict) {
         return dict.pure;
@@ -70,6 +92,7 @@ PS.Prelude = (function () {
         Applicative: Applicative, 
         Apply: Apply, 
         Functor: Functor, 
+        Semigroupoid: Semigroupoid, 
         "<>": $less$greater, 
         ap: ap, 
         "return": $$return, 
@@ -80,7 +103,30 @@ PS.Prelude = (function () {
         "<$>": $less$dollar$greater, 
         cons: cons, 
         ":": $colon, 
-        "$": $dollar
+        "$": $dollar, 
+        ">>>": $greater$greater$greater, 
+        "<<<": $less$less$less, 
+        semigroupoidArr: semigroupoidArr
+    };
+})();
+var PS = PS || {};
+PS.TinyColor = (function () {
+    "use strict";
+    var Prelude = PS.Prelude;
+    
+  function lighten(tc) {
+    return tc.lighten();
+  }
+  ;
+    
+  function toHex(tc) {
+    return tc.toHex();
+  }
+  ;
+    return {
+        toHex: toHex, 
+        lighten: lighten, 
+        tinycolor: tinycolor
     };
 })();
 var PS = PS || {};
@@ -328,6 +374,10 @@ var PS = PS || {};
 PS.ChartJs = (function () {
     "use strict";
     var Prelude = PS.Prelude;
+    function DoughnutChartConfig() {
+
+    };
+    DoughnutChartConfig.value = new DoughnutChartConfig();
     
   function newChart (ctx) {
     return function () {
@@ -347,6 +397,7 @@ PS.ChartJs = (function () {
   }
   ;
     return {
+        DoughnutChartConfig: DoughnutChartConfig, 
         doughnutChart: doughnutChart, 
         newChart: newChart
     };
@@ -357,6 +408,7 @@ PS.Phb = (function () {
     var Prelude = PS.Prelude;
     var Control_Monad_Eff = PS.Control_Monad_Eff;
     var PleaseJs = PS.PleaseJs;
+    var TinyColor = PS.TinyColor;
     var Graphics_Canvas = PS.Graphics_Canvas;
     var Data_Maybe = PS.Data_Maybe;
     var ChartJs = PS.ChartJs;
@@ -371,7 +423,7 @@ PS.Phb = (function () {
                             label: d.label, 
                             value: d.value, 
                             color: _15, 
-                            highlight: _15
+                            highlight: Prelude[">>>"](Prelude.semigroupoidArr())(TinyColor.tinycolor)(TinyColor.toHex)(_15)
                         };
                     };
                 };
