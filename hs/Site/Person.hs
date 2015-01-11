@@ -3,8 +3,8 @@
 module Site.Person where
 
 
-import           BasePrelude                   hiding (bool, delete, insert)
-import           Prelude                       ()
+import BasePrelude hiding (bool, delete, insert)
+import Prelude     ()
 
 import           Control.Lens
 import           Control.Monad.Trans           (lift, liftIO)
@@ -22,8 +22,8 @@ import           Text.Digestive
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
-import           Phb.Db
-import           Site.Internal
+import Phb.Db
+import Site.Internal
 
 personRoutes :: PhbRoutes
 personRoutes =
@@ -103,7 +103,6 @@ personFormSplices rts = do
     createLogin ct pk _ ln        = void . insert $ PersonLogin
       pk
       ln
-      ""
       Nothing
       Nothing
       Nothing

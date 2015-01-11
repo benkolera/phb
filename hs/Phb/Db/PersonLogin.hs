@@ -3,22 +3,22 @@
 {-# LANGUAGE RecordWildCards   #-}
 module Phb.Db.PersonLogin where
 
-import           BasePrelude               hiding (insert, on)
-import           Prelude                   ()
+import BasePrelude hiding (insert, on)
+import Prelude     ()
 
-import           Control.Monad.IO.Class    (MonadIO, liftIO)
-import           Control.Monad.Trans       (lift)
-import           Control.Monad.Trans.Maybe (MaybeT (..), runMaybeT)
-import           Data.Text                 (Text)
-import           Data.Text.Encoding        (decodeUtf8)
-import           Data.Time                 (getCurrentTime)
-import           Database.Esqueleto
-import           Snap.Snaplet.Auth         (AuthFailure (..), AuthUser (..),
-                                            Password (..), UserId (..))
+import Control.Monad.IO.Class    (MonadIO, liftIO)
+import Control.Monad.Trans       (lift)
+import Control.Monad.Trans.Maybe (MaybeT (..), runMaybeT)
+import Data.Text                 (Text)
+import Data.Text.Encoding        (decodeUtf8)
+import Data.Time                 (getCurrentTime)
+import Database.Esqueleto
+import Snap.Snaplet.Auth         (AuthFailure (..), AuthUser (..),
+                                  Password (..), UserId (..))
 
-import           Phb.Db.Esqueleto
-import           Phb.Db.Internal
-import           Phb.Util
+import Phb.Db.Esqueleto
+import Phb.Db.Internal
+import Phb.Util
 
 type WholeLogin = (Entity Person,Entity PersonLogin)
 
@@ -39,7 +39,6 @@ upsertAuthUser au@AuthUser{..} = do
       void . insert $ PersonLogin
         pk
         userLogin
-        (textPassword $ fromMaybe (ClearText "") userPassword)
         userActivatedAt
         userSuspendedAt
         userRememberToken
@@ -69,7 +68,6 @@ upsertAuthUser au@AuthUser{..} = do
       lift . update $ \ pl -> do
         set pl . catMaybes $
           [ Just $ PersonLoginLogin =. val userLogin
-          , (\ (ClearText p) -> PersonLoginPassword =. val (decodeUtf8 p)) <$> userPassword
           , Just $ PersonLoginActivatedAt =. val userActivatedAt
           , Just $ PersonLoginSuspendedAt =. val userSuspendedAt
           , Just $ PersonLoginRememberToken =. val userRememberToken

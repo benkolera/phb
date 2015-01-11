@@ -13,8 +13,8 @@ module Phb.Auth
     , userDbKey
     ) where
 
-import           BasePrelude                  hiding (Handler, left)
-import           Prelude                      ()
+import BasePrelude hiding (Handler, left)
+import Prelude     ()
 
 import           Control.Error
 import           Control.Lens
@@ -32,8 +32,8 @@ import           Snap.Snaplet.Persistent
 import           Snap.Snaplet.Session
 import           Web.ClientSession            (getKey)
 
-import           Phb.Db                       hiding (lookupByLogin)
-import qualified Phb.Db                       as D
+import           Phb.Db   hiding (lookupByLogin)
+import qualified Phb.Db   as D
 import           Phb.Ldap
 import           Phb.Util
 
@@ -42,7 +42,7 @@ db2Au (Entity pk p,Entity _ pl) = AuthUser
   { userId               = Just . UserId . keyToText $ pk
   , userLogin            = pl^.personLoginLogin
   , userEmail            = p^.personEmail.to Just
-  , userPassword         = pl^.personLoginPassword.to (Just . ClearText . T.encodeUtf8)
+  , userPassword         = Just . ClearText $ ""
   , userActivatedAt      = pl^.personLoginActivatedAt
   , userRememberToken    = pl^.personLoginRememberToken
   , userSuspendedAt      = pl^.personLoginSuspendedAt
@@ -73,7 +73,7 @@ loginViaLdap
   -> Text
   -> Bool
   -> Handler b (AuthManager b) (Either AuthFailure AuthUser)
-loginViaLdap ll u p _ = runEitherT $ do
+loginViaLdap ll u p rm = runEitherT $ do
   a <- EitherT $ withBackend $ \ am ->
     note UserNotFound <$> (liftIO $ lookupByLogin am u)
   lc <- lift . withTop' id $ view ll
@@ -87,10 +87,12 @@ loginViaLdap ll u p _ = runEitherT $ do
       . runEitherT
       $ loginLdap (userLogin a) p
 
-    authSuccess a _ = do
-      na <- EitherT $ markAuthSuccess a
-      EitherT $ forceLogin a
-      pure na
+    authSuccess _ _ = do
+      -- Okay, we loginByUsername with a blank password because there
+      -- is no nice way to set the remember me token here. :(
+      -- If there was a function to set the remember me token we could
+      -- use it + forceLogin + markAuthSuccess rather than this madness.
+      EitherT $ loginByUsername u (ClearText "") rm
 
     authFailure a _ = (EitherT $ markAuthFail a) >> (left $ IncorrectPassword)
 

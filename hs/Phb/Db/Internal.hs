@@ -216,7 +216,6 @@ WorkCategory
 PersonLogin
   person PersonId
   login Text
-  password Text
   activatedAt UTCTime Maybe default=now()
   suspendedAt UTCTime Maybe default=now()
   rememberToken Text Maybe
