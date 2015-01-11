@@ -22,6 +22,7 @@ import           Snap.Snaplet.Persistent       (runPersist)
 import           Text.Digestive
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
+import           Text.Printf                   (printf)
 
 import           Phb.Db
 import qualified Phb.Types.Project as T
@@ -131,7 +132,7 @@ projectRowSplice = rowSplice (ts <> ss)
     statusLines ps =
       (ps ^. T.projectStatusPhase : ps ^. T.projectStatusDesc . to toList )
     effortSplices = mapV (C.pureSplice . C.textSplice) $ do
-      "effortDays"  ## (^. T.projectEffortDays . to show . from unpacked)
+      "effortDays"  ## (^. T.projectEffortDays . to (printf "%.3f") . from unpacked)
       "effortStart" ## (^. T.projectStarted . to spliceDay)
     targetsSplice = "target" ## C.manyWithSplices C.runChildren targetSplice
     targetSplice = mapV (C.pureSplice . C.textSplice) $ do

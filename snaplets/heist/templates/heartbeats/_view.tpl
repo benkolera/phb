@@ -11,7 +11,7 @@
       </div>
     </div>
     <div class="row">
-      <div class="col col-sm-7">
+      <div class="col-sm-12 col-md-7">
         <div><highlights /></div>
         <h2>Upcoming Events</h2>
         <div><upcomingEvents /></div>
@@ -35,9 +35,10 @@
           </tbody>
         </table>
       </div>
-      <div class="col-sm-5">
+      <div class="col-sm-12 col-md-5">
+        <h2>Time Worked (Hours)</h2>
         <div class="row">
-          <div class="col-sm-6">
+          <div class="col-sm-offset-1 col-sm-5 col-md-offset-0 col-md-6">
             <canvas id="timeBreakdown" width="300" height="300"></canvas>
           </div>
           <div class="col-sm-6">
