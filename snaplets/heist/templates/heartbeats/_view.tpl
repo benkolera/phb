@@ -1,27 +1,35 @@
   <heartbeat>
     <h1>Development Heartbeat - <start /> to <finish /></h1>
-    <div><highlights /></div>
-    <h2>Upcoming Events</h2>
-    <div><upcomingEvents /></div>
-    <h2>Successes</h2>
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Who</th>
-          <th>What</th>
-          <th>Achievement</th>
-        </tr>
-      </thead>
-      <tbody>
-        <successRow>
-          <tr>
-            <td><who /></td>
-            <td><what /></td>
-            <td><achievement /></td>
-          </tr>
-        </successRow>
-      </tbody>
-    </table>
+    <div class="row">
+      <div class="col col-sm-8">
+        <div><highlights /></div>
+        <h2>Upcoming Events</h2>
+        <div><upcomingEvents /></div>
+        <h2>Successes</h2>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Who</th>
+              <th>What</th>
+              <th>Achievement</th>
+            </tr>
+          </thead>
+          <tbody>
+            <successRow>
+              <tr>
+                <td><who /></td>
+                <td><what /></td>
+                <td><achievement /></td>
+              </tr>
+            </successRow>
+          </tbody>
+        </table>
+      </div>
+      <div class="col-sm-4">
+        <canvas id="timeBreakdown" width="300" height="300"></canvas>
+        <div id="timeBreakdownLegend"></div>
+      </div>
+    </div>
     <h2>Projects</h2>
     <table class="table table-centered">
       <thead>
@@ -155,3 +163,32 @@
       </tbody>
     </table>
   </heartbeat>
+<script>
+$( function () {
+ var data = [
+    {
+        value: 300,
+        color:"#F7464A",
+        highlight: "#FF5A5E",
+        label: "Red"
+    },
+    {
+        value: 50,
+        color: "#46BFBD",
+        highlight: "#5AD3D1",
+        label: "Green"
+    },
+    {
+        value: 100,
+        color: "#FDB45C",
+        highlight: "#FFC870",
+        label: "A really really really long label"
+    }
+];
+var ctx = document.getElementById("timeBreakdown").getContext("2d");
+var timeBreakdownChart = new Chart(ctx).Doughnut(data, {
+  legendTemplate : "<ul class=\"<%=name.toLowerCase()%>-legend\"><% for (var i=0; i<segments.length; i++){%><li><span style=\"background-color:<%=segments[i].fillColor%>\"></span><%if(segments[i].label){%><%=segments[i].label%><%}%></li><%}%></ul>"
+});
+$("#timeBreakdownLegend").html(timeBreakdownChart.generateLegend());
+});
+</script>
