@@ -4,18 +4,19 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Phb.Db.Heartbeat where
 
-import BasePrelude hiding (insert)
+import BasePrelude hiding (insert, on)
 import Prelude     ()
 
 import           Control.Lens               hiding (Action, from, (^.))
 import qualified Control.Lens               as L
 import           Control.Monad.IO.Class     (MonadIO)
 import           Control.Monad.Trans.Reader (ReaderT)
+import qualified Data.Function              as F
 import qualified Data.Map                   as M
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import           Data.Time                  (Day, UTCTime (..))
-import           Database.Esqueleto         hiding (on)
+import           Database.Esqueleto
 import qualified Database.Persist           as P
 
 import           Phb.Db.Action
@@ -49,10 +50,10 @@ loadHeartbeat (Entity hId h) = do
   let s  = h L.^.heartbeatStart
   let f  = h L.^.heartbeatFinish
   let ct = UTCTime f 86400
-  ps  <- loadRel HeartbeatProjectHeartbeat heartbeatProjectProject (^.ProjectPriority) (loadProject ct)
-  es  <- loadRel HeartbeatEventHeartbeat heartbeatEventEvent (^.EventId) (loadEvent ct)
-  bs  <- loadRel HeartbeatBacklogHeartbeat heartbeatBacklogBacklog (^.BacklogPriority) (loadBacklog ct)
-  as  <- loadRel HeartbeatActionHeartbeat heartbeatActionAction (^.ActionId) (loadAction ct)
+  ps  <- loadRel HeartbeatProjectHeartbeat heartbeatProjectProject HeartbeatProjectProject ProjectId (^.ProjectPriority) (loadProject ct)
+  es  <- loadRel HeartbeatEventHeartbeat heartbeatEventEvent HeartbeatEventEvent EventId (^.EventId) (loadEvent ct)
+  bs  <- loadRel HeartbeatBacklogHeartbeat heartbeatBacklogBacklog HeartbeatBacklogBacklog BacklogId (^.BacklogPriority) (loadBacklog ct)
+  as  <- loadRel HeartbeatActionHeartbeat heartbeatActionAction HeartbeatActionAction ActionId (^.ActionId) (loadAction ct)
   sss <- P.selectList [SuccessHeartbeat P.==. hId] []
   ss  <- traverse success sss
   stl <- loadTimeLogsForPeriod s f
@@ -81,8 +82,9 @@ loadHeartbeat (Entity hId h) = do
         ps
         what
         (T.lines achievments)
-    loadRel relHbCol relIdL priorityCol load = do
+    loadRel relHbCol relIdL relXFk xId priorityCol load = do
       rels <- select $ from $ \ (rel,x) -> do
+        on (rel^.relXFk ==. x^.xId)
         where_ (rel^.relHbCol ==. val hId)
         orderBy [desc $ priorityCol x]
         return rel
@@ -91,7 +93,7 @@ loadHeartbeat (Entity hId h) = do
     supportLogSummary =
       fmap (\ (k,(hs,ps)) -> T.HeartbeatTimeLog k (getSum hs) ps)
       . reverse
-      . sortBy (compare `on` (fst . snd))
+      . sortBy (compare `F.on` (fst . snd))
       . M.toList
       . foldl' accumTimeLogSummaryMap M.empty
 
