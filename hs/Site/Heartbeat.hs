@@ -28,6 +28,7 @@ import           Snap.Snaplet.Persistent                 (runPersist)
 import           Text.Digestive                          hiding (Success)
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
+import           Text.Printf                             (printf)
 import           Text.XmlHtml                            (Node (..))
 
 import           Phb.Db
@@ -183,7 +184,7 @@ timeLogDataSplice rts = do
   where
     timeLogWholeJson tlw = fold
       [ "{value: "
-      , tlw^.T.heartbeatTimeLogHours.to show.to B.pack
+      , tlw^.T.heartbeatTimeLogHours.to (printf "%.3f").to B.pack
       , ", label: '"
       , tlw^.T.heartbeatTimeLogLabel.to encodeUtf8
       , "'}"
