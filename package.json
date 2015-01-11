@@ -1,0 +1,16 @@
+{
+  "author": "Ben Kolera",
+  "name": "phb",
+  "version": "0.0.0",
+  "homepage": "https://github.com/benkolera/phb",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/benkolera/phb.git"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "grunt-cli": "0.1.13",
+    "grunt-contrib-watch": "0.6.1",
+    "grunt-purescript": "0.6.0"
+  }
+}
