@@ -73,12 +73,14 @@
           <button class="btn btn-xs btn-default" addControl>
             <i class="fa fa-plus" /> Add Another
           </button>
+          <!--
           <hr/>
           <div class="row">
             <div class="col-sm-2">
               <b>Total Time</b>: <span id="log-total">00:00</span>
             </div>
           </div>
+          -->
         </div>
       </dfInputList>
     </div>
