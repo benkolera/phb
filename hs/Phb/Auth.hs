@@ -75,7 +75,7 @@ loginViaLdap
   -> Bool
   -> Handler b (AuthManager b) (Either AuthFailure AuthUser)
 loginViaLdap ll u p rm = runEitherT $ do
-  if T.null p then pure () else left PasswordMissing
+  if T.null p then left PasswordMissing else pure ()
   a  <- EitherT $ withBackend $ \ am ->
     note UserNotFound <$> (liftIO $ lookupByLogin am u)
   lc <- lift . withTop' id $ view ll
