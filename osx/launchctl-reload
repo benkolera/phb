@@ -1,1 +1,3 @@
 launchctl unload ~/Library/LaunchAgents/com.benkolera.phb.plist && launchctl load ~/Library/LaunchAgents/com.benkolera.phb.plist
+launchctl unload ~/Library/LaunchAgents/com.benkolera.phb.systems.plist && launchctl load ~/Library/LaunchAgents/com.benkolera.phb.systems.plist
+launchctl unload ~/Library/LaunchAgents/com.benkolera.phb.neteng.plist && launchctl load ~/Library/LaunchAgents/com.benkolera.phb.neteng.plist

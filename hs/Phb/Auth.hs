@@ -13,8 +13,8 @@ module Phb.Auth
     , userDbKey
     ) where
 
-import BasePrelude hiding (Handler, left)
-import Prelude     ()
+import           BasePrelude                  hiding (Handler, left)
+import           Prelude                      ()
 
 import           Control.Error
 import           Control.Lens
@@ -24,6 +24,7 @@ import           Control.Monad.Trans
 import           Control.Monad.Trans.Resource (ResourceT)
 import qualified Data.HashMap.Strict          as HM
 import           Data.Text                    (Text)
+import qualified Data.Text                    as T
 import qualified Data.Text.Encoding           as T
 import           Database.Esqueleto           hiding ((^.))
 import           Snap.Snaplet
@@ -32,8 +33,8 @@ import           Snap.Snaplet.Persistent
 import           Snap.Snaplet.Session
 import           Web.ClientSession            (getKey)
 
-import           Phb.Db   hiding (lookupByLogin)
-import qualified Phb.Db   as D
+import           Phb.Db                       hiding (lookupByLogin)
+import qualified Phb.Db                       as D
 import           Phb.Ldap
 import           Phb.Util
 
@@ -74,7 +75,8 @@ loginViaLdap
   -> Bool
   -> Handler b (AuthManager b) (Either AuthFailure AuthUser)
 loginViaLdap ll u p rm = runEitherT $ do
-  a <- EitherT $ withBackend $ \ am ->
+  if T.null p then left PasswordMissing else pure ()
+  a  <- EitherT $ withBackend $ \ am ->
     note UserNotFound <$> (liftIO $ lookupByLogin am u)
   lc <- lift . withTop' id $ view ll
   ldapAuth a lc
