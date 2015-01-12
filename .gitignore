@@ -16,3 +16,5 @@ site_key.txt
 /static/components
 /static/js/phb.js
 /node_modules/
+/neteng.cfg
+/systems.cfg

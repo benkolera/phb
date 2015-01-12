@@ -27,9 +27,9 @@ import Site.Internal
 
 personRoutes :: PhbRoutes
 personRoutes =
-  [("/people",ifTop $ render "people/all")
-  ,("/people/create",ifTop $ render "people/create")
-  ,("/people/:id/edit",ifTop $ render "people/edit")
+  [("/people",ifTop . userOrIndex . render $ "people/all")
+  ,("/people/create",ifTop . userOrIndex . render $ "people/create")
+  ,("/people/:id/edit",ifTop . userOrIndex . render $ "people/edit")
   ]
 
 data PersonInput = PersonInput
