@@ -16,8 +16,7 @@ import qualified Data.Text                               as Text
 import           Data.Text.Encoding                      (encodeUtf8)
 import           Data.Text.Lens                          (unpacked)
 import           Data.Time                               (UTCTime, addDays,
-                                                          getCurrentTime,
-                                                          utctDay)
+                                                          getCurrentTime)
 import           Database.Persist.Sql
 import           Heist
 import qualified Heist.Compiled                          as C
@@ -33,6 +32,7 @@ import           Text.XmlHtml                            (Node (..))
 
 import           Phb.Db
 import qualified Phb.Types     as T
+import           Phb.Util
 import           Site.Backlog  (backlogRowSplice)
 import           Site.Event    (eventRowSplice)
 import           Site.Internal
@@ -49,16 +49,17 @@ heartbeatRoutes =
 -- TODO: Taking a T.Heartbeat instead of a HeartbeatInput is kinda off
 heartbeatForm :: UTCTime -> Maybe (T.Heartbeat) -> PhbForm Text HeartbeatInput
 heartbeatForm ct e = monadic $ do
+  cd <- liftIO $ localDayFromUTC ct
   (as,bs,es,prjs,ss,lhb) <- runPersist $ (,,,,,)
     <$> (choiceOpts actionName  <$> loadActiveActions ct)
     <*> (choiceOpts backlogName <$> loadActiveBacklog ct)
     <*> (choiceOpts eventName   <$> loadActiveEvents ct)
     <*> (choiceOpts projectName <$> loadActiveProjects ct)
     <*> (traverse (traverse successInput) successes)
-    <*> lastHeartbeat (utctDay ct)
+    <*> lastHeartbeat cd
   return $ HeartbeatInput
     <$> "start"      .: html5DateFormlet (start <|> (lhbStart lhb))
-    <*> "finish"     .: html5DateFormlet (finish <|> Just (utctDay ct))
+    <*> "finish"     .: html5DateFormlet (finish <|> Just cd)
     <*> "upcoming"   .: listOf (neText upcomingErrMsg) upcoming
     <*> "highlights" .: listOf (neText highlightErrMsg) highlights
     <*> "successes"  .: listOf successForm ss

@@ -17,6 +17,7 @@ data LinkKey
   | WorkCategoryLink (Key WorkCategory)
   | BacklogLink (Key Backlog)
   deriving (Show,Eq,Ord)
+makePrisms ''LinkKey
 
 data TimeLogLink = TimeLogLink
   { _timeLogLinkName :: Text

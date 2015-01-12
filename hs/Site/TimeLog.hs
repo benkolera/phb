@@ -9,21 +9,20 @@ import BasePrelude hiding (insert)
 import Prelude     ()
 
 import           Control.Lens                  hiding (Action)
-import           Control.Monad.IO.Class        (liftIO)
+import           Control.Monad.IO.Class        (MonadIO, liftIO)
 import           Control.Monad.Reader          (runReaderT)
 import           Control.Monad.Trans           (lift)
 import qualified Data.List.NonEmpty            as NEL
 import           Data.Map.Syntax
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
-import           Data.Text.Encoding            (encodeUtf8)
 import           Data.Text.Lens                (unpacked)
-import           Data.Time                     (Day, getCurrentTime)
+import           Data.Time                     (Day, UTCTime, getCurrentTime)
 import           Database.Persist.Sql
 import           Heist
 import qualified Heist.Compiled                as C
 import qualified Heist.Compiled.LowLevel       as C
-import           Snap                          (getParam, ifTop, redirect, with)
+import           Snap                          (ifTop, redirect, with)
 import           Snap.Snaplet.Auth
 import           Snap.Snaplet.Heist.Compiled
 import           Snap.Snaplet.Persistent       (runPersist)
@@ -67,6 +66,23 @@ data TimeLogInput = TimeLogInput
   } deriving Show
 makeLenses ''TimeLogInput
 
+
+data TimeLogInputRow = TimeLogInputRow
+  { _timeLogInputRowDesc  :: T.Text
+  , _timeLogInputRowHours :: Int
+  , _timeLogInputRowMins  :: Int
+  , _timeLogInputRowLink  :: LinkKey
+  } deriving Show
+makeLenses ''TimeLogInputRow
+
+data TimeLogInputMany = TimeLogInputMany
+  { _timeLogInputManyPerson :: (Key Person)
+  , _timeLogInputManyDay    :: Day
+  , _timeLogInputManyLogs   :: NEL.NonEmpty TimeLogInputRow
+  } deriving Show
+makeLenses ''TimeLogInputMany
+
+
 userErrMsg,timeErrMsg :: T.Text
 userErrMsg = "Username cannot be empty"
 timeErrMsg = "Time spent must be greater than 0"
@@ -92,10 +108,12 @@ groupLinkKeys=
     linkTypeName (WorkCategoryLink _) = "Work Category"
 
 
-timeLogForm :: Maybe (TimeLogWhole) -> [(LinkKey,Text)] -> [(Key Person,Text)] -> PhbForm T.Text TimeLogInput
-timeLogForm tl lk pp =
+timeLogForm :: TimeLogWhole -> PhbForm T.Text TimeLogInput
+timeLogForm tl =
   check timeErrMsg timeOk $ monadic $ do
-  cd <- liftIO getCurrentDay
+  ct <- liftIO getCurrentTime
+  cd <- liftIO $ localDayFromUTC ct
+  (lk,pp) <- runPersist $ timeLogFormOptions ct
   p  <- (userDbKey =<<) <$> with auth currentUser
   return $ TimeLogInput
     <$> "username" .: choice pp (username <|> p)
@@ -106,13 +124,52 @@ timeLogForm tl lk pp =
     <*> "link"     .: groupedChoice (groupLinkKeys lk) link
   where
     timeOk i = ((i^.timeLogInputHours) + (i^.timeLogInputMins)) > 0
-    username = (tl ^? _Just . timeLogWholeLog . eVal . timeLogPerson )
-    day      = (tl ^? _Just . timeLogWholeLog . eVal . timeLogDay )
-    desc     = (tl ^? _Just . timeLogWholeLog . eVal . timeLogDesc )
+    username = (tl ^? timeLogWholeLog . eVal . timeLogPerson )
+    day      = (tl ^? timeLogWholeLog . eVal . timeLogDay )
+    desc     = (tl ^? timeLogWholeLog . eVal . timeLogDesc )
     hours    = allMins <&> (`div` 60)
     minutes  = allMins <&> (`mod` 60)
-    allMins  = (tl ^? _Just . timeLogWholeLog . eVal . timeLogMinutes )
-    link     = (tl ^? _Just . timeLogWholeLink . _Just . timeLogLinkKey )
+    allMins  = (tl ^? timeLogWholeLog . eVal . timeLogMinutes )
+    link     = (tl ^? timeLogWholeLink . _Just . timeLogLinkKey )
+
+timeLogFormMany :: PhbForm T.Text TimeLogInputMany
+timeLogFormMany = monadic $ do
+  ct <- liftIO getCurrentTime
+  cd <- liftIO $ localDayFromUTC ct
+  (lk,pp) <- runPersist $ timeLogFormOptions ct
+  p  <- (userDbKey =<<) <$> with auth currentUser
+  return $ TimeLogInputMany
+    <$> "username" .: choice pp p
+    <*> "day"      .: html5DateFormlet (Just cd)
+    <*> "rows"     .: nelOf rowsErr (timeLogRowForm lk) Nothing
+  where
+    rowsErr = "Must supply at least one time log"
+    timeLogRowForm lk _ = check timeErrMsg timeOk
+      $ TimeLogInputRow
+      <$> "desc"     .: text Nothing
+      <*> "hours"    .: positiveIntForm "Hours" Nothing
+      <*> "minutes"  .: positiveIntForm "Minutes" Nothing
+      <*> "link"     .: groupedChoice (groupLinkKeys lk) Nothing
+
+    timeOk i = ((i^.timeLogInputRowHours) + (i^.timeLogInputRowMins)) > 0
+
+timeLogFormOptions
+  :: (MonadIO m, Applicative m)
+  => UTCTime
+  -> Db m ([(LinkKey, Text)], [(Key Person, Text)])
+timeLogFormOptions ct = (,)
+  <$> loadLinkOptions
+  <*> (fmap personChoiceOption <$> selectList [PersonLogsTime ==. True] [Asc PersonName])
+  where
+    loadLinkOptions = do
+      fmap fold . sequence $
+        [ loadLinkOptions' ProjectLink projectName (loadActiveProjects ct)
+        , loadLinkOptions' BacklogLink backlogName (loadActiveBacklog ct)
+        , loadLinkOptions' EventLink eventName (loadActiveEvents ct)
+        , loadLinkOptions' ActionLink actionName (loadActiveActions ct)
+        , loadLinkOptions' WorkCategoryLink workCategoryName (loadActiveWorkCategories ct)
+        ]
+    loadLinkOptions' lc nl a = mkLinkOptions lc nl <$> a
 
 positiveIntForm
   :: (Show a, Read a, Ord a, Num a, Monad m)
@@ -125,74 +182,62 @@ positiveIntForm thing n = validate vf (text (T.pack . show <$> n))
     vf x  = maybe err DF.Success . mfilter (>= 0) . readMaybe . T.unpack $ x
     err = DF.Error $ thing <> " must be a positive number"
 
-timeLogFormSplices :: PhbRuntimeSplice (Maybe TimeLogWhole) -> PhbSplice
-timeLogFormSplices rts = do
+editTimeLogSplices :: PhbSplice
+editTimeLogSplices = do
   promise <- C.newEmptyPromise
   outputChildren <- C.withSplices C.runChildren splice (C.getPromise promise)
   pure . C.yieldRuntime $ do
-    tlw <- rts
-    let preExisting = isJust tlw
-    ct  <- liftIO getCurrentTime
-    (links,people) <- lift . runPersist $ (,)
-      <$> loadLinkOptions ct
-      <*> (fmap personChoiceOption <$> selectList [PersonLogsTime ==. True] [Asc PersonName])
-    (v, result) <- lift $ runForm "timeLog" (timeLogForm tlw links people)
+    tlw <- lift $ do
+      requireEntity "time_log" "id" >>= runPersist . loadTimeLogWhole
+    (v, result) <- lift $ runForm "timeLog" (timeLogForm tlw)
     case result of
-      Just x  -> lift (createTimeLog x ct (tlw ^? _Just . timeLogWholeLog . eKey))
-      Nothing -> C.putPromise promise (v,preExisting) >> C.codeGen outputChildren
+      Just x  -> lift (updateTimeLog x (tlw ^. timeLogWholeLog . eKey))
+      Nothing -> C.putPromise promise v >> C.codeGen outputChildren
   where
     splice = do
-      "timeLogForm" ## formSplice mempty mempty . fmap fst
-      "action"      ## (C.pureSplice . C.textSplice $ actionText . snd)
-      "ifCreate"    ## showIfTrue . fmap (not . snd)
+      "timeLogForm" ## formSplice mempty mempty
 
-    showIfTrue r = do
-      action <- C.runChildren
-      return $ C.yieldRuntime $ do
-        b <- r
-        if b
-        then C.codeGen action
-        else return mempty
+    updateTimeLog x k = do
+      void . runPersist $ replace k (newTimeLog x)
+      flashSuccess $ "Timelog Updated"
+      redirect "/time_logs"
 
-    actionText True  = "Edit"
-    actionText False = "Create"
+    newTimeLog (TimeLogInput p dy d h m l) =
+      TimeLog p d (h*60 + m) dy
+        (l ^? _ProjectLink)
+        (l ^? _EventLink)
+        (l ^? _BacklogLink)
+        (l ^? _ActionLink)
+        (l ^? _WorkCategoryLink)
 
-    createTimeLog x ct kMay = do
-      -- Should probably change this so that a DB error wouldn't just
-      -- Crash us and should put a nice error in the form.
-      case kMay of
-       Nothing -> do
-         a <- getParam "action"
-         let continue = maybe False (== "Create & Continue") a
-         void . runPersist $ insert (newTimeLog x ct)
-         flashSuccess $ "Timelog Created"
-         if   continue
-         then redirect $ "/time_logs/create?personId=" <> (encodeUtf8 $ keyToText (x^.timeLogInputPerson))
-         else redirect "/time_logs"
-       Just k  -> do
-         void . runPersist $ replace k (newTimeLog x ct)
-         flashSuccess $ "Timelog Updated"
-         redirect "/time_logs"
+createTimeLogSplices :: PhbSplice
+createTimeLogSplices = do
+  promise <- C.newEmptyPromise
+  outputChildren <- C.withSplices C.runChildren splice (C.getPromise promise)
+  pure . C.yieldRuntime $ do
+    (v, result) <- lift $ runForm "timeLogMany" timeLogFormMany
+    case result of
+      Just x  -> lift (createTimeLog x)
+      Nothing -> C.putPromise promise v >> C.codeGen outputChildren
+  where
+    splice = do
+      "timeLogFormMany" ## formSplice mempty mempty
 
-    loadLinkOptions ct = do
-      fmap fold . sequence $
-        [ loadLinkOptions' ProjectLink projectName (loadActiveProjects ct)
-        , loadLinkOptions' BacklogLink backlogName (loadActiveBacklog ct)
-        , loadLinkOptions' EventLink eventName (loadActiveEvents ct)
-        , loadLinkOptions' ActionLink actionName (loadActiveActions ct)
-        , loadLinkOptions' WorkCategoryLink workCategoryName (loadActiveWorkCategories ct)
-        ]
-    loadLinkOptions' lc nl a = mkLinkOptions lc nl <$> a
-    newTimeLog (TimeLogInput p dy d h m l) _ =
-      let (pId,eId,bId,aId,wcId) = linkIds l
-      in TimeLog p d (h*60 + m) dy pId eId bId aId wcId
+    createTimeLog x = do
+      void . runPersist $ insertMany (newTimeLogs x)
+      flashSuccess $ "Timelog Created"
+      redirect "/time_logs/mine"
 
-    -- TODO: Surely this can be solved with prisms
-    linkIds (ProjectLink p)      = (Just p,Nothing,Nothing,Nothing,Nothing)
-    linkIds (EventLink e)        = (Nothing,Just e,Nothing,Nothing,Nothing)
-    linkIds (BacklogLink b)      = (Nothing,Nothing,Just b,Nothing,Nothing)
-    linkIds (ActionLink a)       = (Nothing,Nothing,Nothing,Just a,Nothing)
-    linkIds (WorkCategoryLink w) = (Nothing,Nothing,Nothing,Nothing,Just w)
+    newTimeLogs (TimeLogInputMany p dy rs) = toList
+      . fmap (newTimeLog p dy)
+      $ rs
+    newTimeLog p dy (TimeLogInputRow d h m l) =
+      TimeLog p d (h*60 + m) dy
+        (l ^? _ProjectLink)
+        (l ^? _EventLink)
+        (l ^? _BacklogLink)
+        (l ^? _ActionLink)
+        (l ^? _WorkCategoryLink)
 
 timeLogSplices :: Splices (PhbRuntimeSplice (TimeLogWhole) -> PhbSplice)
 timeLogSplices = mapV (C.pureSplice . C.textSplice) $ do
@@ -209,14 +254,6 @@ timeLogsSplices = C.withSplices C.runChildren $ do
   "timeLogTitle" ## (C.pureSplice . C.textSplice) fst
   "timeLogRow"   ## C.manyWithSplices C.runChildren timeLogSplices . fmap snd
 
-createTimeLogSplices :: PhbSplice
-createTimeLogSplices = timeLogFormSplices (pure Nothing)
-
-editTimeLogSplices :: PhbSplice
-editTimeLogSplices = timeLogFormSplices . lift $ do
-  tl  <- requireEntity "time_log" "id"
-  tlw <- runPersist $ loadTimeLogWhole tl
-  pure (Just tlw)
 
 byDayTimeLogsSplices :: PhbSplice
 byDayTimeLogsSplices = do

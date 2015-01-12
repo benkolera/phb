@@ -45,10 +45,7 @@
   </div>
   <div class="form-group">
     <div class="col-sm-offset-2 col-sm-2">
-      <dfInputSubmit name="action" value="${action}" class="btn btn-primary" />
-      <ifCreate>
-        <dfInputSubmit name="action" value="Create & Continue" class="btn btn-default" />
-      </ifCreate>
+      <dfInputSubmit name="action" value="Update" class="btn btn-primary" />
     </div>
   </div>
 </timeLogForm>

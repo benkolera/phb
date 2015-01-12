@@ -8,9 +8,9 @@ import BasePrelude
 import Prelude     ()
 
 import           Control.Lens        hiding (from, (<.))
-import           Control.Monad.Trans (MonadIO)
+import           Control.Monad.Trans (MonadIO, liftIO)
 import           Data.Text           (Text)
-import           Data.Time           (Day, UTCTime (..))
+import           Data.Time           (Day, UTCTime)
 import           Database.Esqueleto  hiding ((^.))
 import qualified Database.Esqueleto  as E
 import qualified Database.Persist    as P
@@ -21,6 +21,7 @@ import           Phb.Db.Esqueleto
 import           Phb.Db.Internal
 import           Phb.Db.Person
 import qualified Phb.Types.Project as T
+import           Phb.Util
 
 data ProjectInput = ProjectInput
   { _projectInputName         :: Text
@@ -46,16 +47,17 @@ loadProject :: (MonadIO m, Applicative m)
   => UTCTime
   -> Entity Project
   -> Db m T.Project
-loadProject d (Entity pId p) = do
+loadProject ct (Entity pId p) = do
+  cd <- liftIO $ localDayFromUTC ct
   tws  <- P.selectList
           [ TimeLogProject P.==. Just pId
-          , TimeLogDay     P.<=. utctDay d
+          , TimeLogDay     P.<=. cd
           ] []
   ptds <- P.selectList [ProjectTargetDateProject P.==. pId]      []
   cs   <- loadProjectCustomers pId
   ps   <- loadProjectPeople pId
-  ss   <- loadProjectStatuses pId d
-  ns   <- loadProjectNotes pId d
+  ss   <- loadProjectStatuses pId ct
+  ns   <- loadProjectNotes pId ct
   return $ T.Project
     pId
     (p ^. projectName)
@@ -85,9 +87,10 @@ loadProject d (Entity pId p) = do
       (fromIntegral (sum (fmap (view timeLogMinutes . entityVal) tws)) / 60 / 8)
 
 loadActiveProjects :: MonadIO m => UTCTime -> SqlPersistT m [Entity Project]
-loadActiveProjects ct =
+loadActiveProjects ct = do
+  cd <- liftIO $ localDayFromUTC ct
   select $ from $ \ p -> do
-    where_ (withinBounds p ProjectStarted ProjectFinished (utctDay ct))
+    where_ (withinBounds p ProjectStarted ProjectFinished cd)
     orderBy [desc $ p E.^.ProjectPriority]
     return p
 

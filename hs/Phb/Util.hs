@@ -4,6 +4,7 @@ module Phb.Util where
 import BasePrelude
 import Prelude     ()
 
+import Control.Lens ((<&>))
 import Control.Error (hush)
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -14,6 +15,10 @@ import System.Locale (defaultTimeLocale)
 
 getCurrentDay :: IO Day
 getCurrentDay = localDay . zonedTimeToLocalTime <$> getZonedTime
+
+localDayFromUTC :: UTCTime -> IO Day
+localDayFromUTC ct = getCurrentTimeZone
+  <&> (localDay . zonedTimeToLocalTime . (`utcToZonedTime` ct))
 
 parseDay :: String -> Maybe Day
 parseDay = parseTime defaultTimeLocale "%F"

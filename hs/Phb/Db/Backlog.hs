@@ -9,10 +9,10 @@ import Prelude     ()
 
 import           Control.Lens        hiding (from, (^.))
 import qualified Control.Lens        as L
-import           Control.Monad.Trans (MonadIO)
+import           Control.Monad.Trans (MonadIO, liftIO)
 import           Data.Text           (Text)
 import qualified Data.Text           as T
-import           Data.Time           (UTCTime, utctDay)
+import           Data.Time           (UTCTime)
 import           Database.Esqueleto
 import qualified Database.Persist    as P
 
@@ -21,6 +21,7 @@ import           Phb.Db.Esqueleto
 import           Phb.Db.Internal
 import           Phb.Db.Project
 import qualified Phb.Types.Backlog as T
+import           Phb.Util
 
 data BacklogInput = BacklogInput
   { _backlogInputName         :: Text
@@ -148,16 +149,17 @@ promoteBacklog
   -> Db m (Key Project)
 promoteBacklog ct e = do
   b <- loadBacklog ct e
-  newP <- upsertProjectInput (mkPrjInput b) ct Nothing
+  cd <- liftIO $ localDayFromUTC ct
+  newP <- upsertProjectInput (mkPrjInput b cd) ct Nothing
   updateStatus (entityKey e) ct BacklogProjectStarted
   pure newP
   where
-    mkPrjInput i = ProjectInput
+    mkPrjInput i cd = ProjectInput
       (i L.^.T.backlogName)
       "Development"
       StatusGreen
       Nothing
-      (utctDay ct)
+      cd
       Nothing
       (i L.^.T.backlogPriority)
       (T.unlines (i L.^..T.backlogNotes.traverse.eVal.backlogNoteNote))

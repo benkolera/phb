@@ -1,6 +1,7 @@
 module Phb where
 
 import Control.Monad.Eff
+import qualified Control.Monad.JQuery as J
 import Data.Maybe
 import Data.Traversable
 import DOM
@@ -9,6 +10,9 @@ import PleaseJs
 import TinyColor
 import ChartJs
 import Debug.Trace
+import Data.Either
+import Data.Foreign
+import Data.Foreign.Class
 
 heartbeatTimebreakdown
   :: forall eff .
@@ -31,3 +35,16 @@ heartbeatTimebreakdown canvasId dataz config = do
         , color     : c
         , highlight : (tinycolor >>> toHex $ c)
         }
+
+initTimeLogManyForm :: Eff ( dom :: DOM , trace:: Trace ) Unit
+initTimeLogManyForm = do
+  hs <- J.select ".log-hour"
+  ms <- J.select ".log-minute"
+  flip (J.on "change") hs $ \_ ob -> do
+    Right hour <- read <$> J.getValue ob
+    trace $ "Hour changed to " ++ hour
+  flip (J.on "change") ms $ \_ ob -> do
+    Right minute <- read <$> J.getValue ob
+    trace $ "Minute changed to " ++ minute
+
+  return unit

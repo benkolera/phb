@@ -15,6 +15,8 @@ import           Blaze.ByteString.Builder.Internal.Types (Builder)
 import           Control.Lens
 import           Data.ByteString                         (ByteString)
 import qualified Data.ByteString.Char8                   as B
+import           Data.List.NonEmpty                      (NonEmpty (..))
+import qualified Data.List.NonEmpty                      as NEL
 import           Data.Map.Syntax                         (( ## ))
 import           Data.Text                               (Text)
 import qualified Data.Text                               as T
@@ -42,14 +44,15 @@ import           Snap.Snaplet.Session                    (SessionManager,
                                                           setInSession,
                                                           withSession)
 import           System.Locale                           (defaultTimeLocale)
-import           Text.Digestive                          (Form, Formlet, check,
+import           Text.Digestive                          (Form, Formlet,
+                                                          Result (..), check,
                                                           dateFormlet, listOf,
                                                           localTimeFormlet,
                                                           optionalDateFormlet, optionalLocalTimeFormlet,
-                                                          text)
+                                                          text, validate)
 import           Text.XmlHtml                            (getAttribute)
 
-import Phb.Db
+import Phb.Db   hiding (Success)
 import Phb.Ldap
 import Phb.Mail
 import Phb.Util
@@ -211,8 +214,10 @@ choiceOpt fl = entityKey &&& (view fl . entityVal)
 choiceOpts :: Getting c' b c' -> [Entity b] -> [(Key b, c')]
 choiceOpts = fmap . choiceOpt
 
-nelOf :: Monad m => v -> Formlet v m a -> Maybe [a] -> Form v m [a]
-nelOf errMsg opts = check errMsg null . listOf opts
+nelOf :: Monad m => v -> Formlet v m a -> Maybe [a] -> Form v m (NonEmpty a)
+nelOf errMsg opts = validate mkNel . listOf opts
+  where
+    mkNel = maybe (Error errMsg) Success . NEL.nonEmpty
 
 neText :: Monad m => v -> Maybe Text -> Form v m Text
 neText errMsg = check errMsg isNotEmpty . text
@@ -229,6 +234,18 @@ pageParam = do
     . (readMaybe =<<)
     . fmap B.unpack
     $ pMay
+
+showIfTrue
+  :: Monad n
+  => RuntimeSplice n Bool
+  -> C.Splice n
+showIfTrue r = do
+  action <- C.runChildren
+  return $ C.yieldRuntime $ do
+    b <- r
+    if b
+    then C.codeGen action
+    else return mempty
 
 paginationParam  :: Int -> PhbHandler [SelectOpt r]
 paginationParam pw = flip paginate pw <$> pageParam
