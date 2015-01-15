@@ -17,12 +17,13 @@ import           Data.Map.Syntax
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
 import           Data.Text.Lens                (unpacked)
-import           Data.Time                     (Day, UTCTime, getCurrentTime)
+import           Data.Time                     (Day, UTCTime, addDays,
+                                                getCurrentTime)
 import           Database.Persist.Sql
 import           Heist
 import qualified Heist.Compiled                as C
 import qualified Heist.Compiled.LowLevel       as C
-import           Snap                          (ifTop, redirect, with)
+import           Snap                          (getParam, ifTop, redirect, with)
 import           Snap.Snaplet.Auth
 import           Snap.Snaplet.Heist.Compiled
 import           Snap.Snaplet.Persistent       (runPersist)
@@ -39,9 +40,10 @@ import Site.Internal
 
 handlePester :: PhbHandler ()
 handlePester = do
-  cd  <- liftIO getCurrentDay
+  y   <- isJust <$> getParam "yesterday"
+  cd  <- (if y then (addDays (-1)) else id) <$> liftIO getCurrentDay
   ps  <- runPersist $ missingTimeLogsFor cd
-  view mail >>= liftIO . runReaderT (traverse_ timelogPesterEmail ps)
+  view mail >>= liftIO . runReaderT (traverse_ (timelogPesterEmail cd) ps)
   flashSuccess "Pestered!"
   redirect "/time_logs"
 

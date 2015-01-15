@@ -7,8 +7,8 @@ module Phb.Mail
     , mkMailConfig
     ) where
 
-import           BasePrelude
-import           Prelude                       ()
+import BasePrelude
+import Prelude     ()
 
 import           Control.Lens
 import           Control.Monad.IO.Class        (liftIO)
@@ -20,6 +20,7 @@ import qualified Data.Configurator.Types       as C
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
 import qualified Data.Text.Lazy                as TL
+import           Data.Time                     (Day)
 import           Database.Persist              (Entity (..))
 import           Network.Mail.Mime             (Address (..),
                                                 renderSendMailCustom,
@@ -30,7 +31,8 @@ import qualified Text.Blaze.Html5              as H
 import qualified Text.Blaze.Html5.Attributes   as A
 import           Text.Blaze.Internal           (textValue)
 
-import           Phb.Db
+import Phb.Db
+import Phb.Util
 
 data MailConfig = MailConfig
   { _mcFromAddr :: Address
@@ -59,21 +61,21 @@ postEmail toAddr subj plain html = do
   m <- liftIO $ simpleMail toAddr f subj plain (renderHtml html) []
   liftIO $ renderSendMailCustom path ops m
 
-timelogPesterEmail :: Entity Person -> ReaderT MailConfig IO ()
-timelogPesterEmail (Entity _ p) = do
+timelogPesterEmail :: Day -> Entity Person -> ReaderT MailConfig IO ()
+timelogPesterEmail d (Entity _ p) = do
   l <- hoist generalize link
   postEmail
    (personToAddress p)
-   "PHB - Please log time for today"
+   ("PHB - Please log time for " <> showTextDay d)
    (plain $ TL.fromStrict l)
    (html l)
 
  where
-   intro = "You have not logged time for today."
+   intro = "You have not logged time for the " <> showTextDay d
    plea  = "Please log it here: "
    link  = mkLink $ "/time_logs/create"
    plain l = TL.unlines
-     [ intro
+     [ TL.fromStrict intro
      , plea <> l
      ]
    html l = H.html . H.body $ do

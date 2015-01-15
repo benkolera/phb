@@ -23,6 +23,9 @@ localDayFromUTC ct = getCurrentTimeZone
 parseDay :: String -> Maybe Day
 parseDay = parseTime defaultTimeLocale "%F"
 
+showTextDay :: Day -> Text
+showTextDay = T.pack . formatTime defaultTimeLocale "%F"
+
 fromGregorianTime :: Integer -> Int -> Int -> Int -> Int -> Pico -> LocalTime
 fromGregorianTime y m d hh mm ss =
   LocalTime (fromGregorian y m d) (TimeOfDay hh mm ss)
