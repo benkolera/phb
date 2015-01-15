@@ -103,6 +103,7 @@ function addInputListItem(button, prefix) {
            .addClass(prefix+'.inputListItem');
     var items = findItems(instanceTop, prefix);
     newItem.appendTo($(items[items.length-1]).parent());
+    listTop.trigger( "addListRow");
 
   }
 }
@@ -118,5 +119,6 @@ function removeInputListItem(button, prefix) {
   $('.inputListInstance', listTop).each(function(i, instanceTop) {
     var r = prefix + '.' + curInd;
     $('[data-ind="' + r +'"]', instanceTop).remove();
+    listTop.trigger( "deleteListRow");
   });
 }

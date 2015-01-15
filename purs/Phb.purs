@@ -11,10 +11,11 @@ import Math
 import PleaseJs
 import TinyColor
 import ChartJs
-import Debug.Trace
 import Data.Either
 import Data.Foreign
 import Data.Foreign.Class
+
+type TimeInputs = { hours :: J.JQuery , mins :: J.JQuery }
 
 heartbeatTimebreakdown
   :: forall eff .
@@ -24,7 +25,6 @@ heartbeatTimebreakdown
   -> Eff ( pleaseJs :: PleaseJs
          , dom:: DOM
          , canvas :: Canvas
-         , ref :: Ref
          | eff ) ChartType
 heartbeatTimebreakdown canvasId dataz config = do
   Just c <- getCanvasElementById(canvasId)
@@ -42,30 +42,44 @@ heartbeatTimebreakdown canvasId dataz config = do
         , highlight : (tinycolor >>> toHex $ c)
         }
 
-initTimeLogManyForm :: Eff ( dom :: DOM , trace:: Trace , ref :: Ref ) Unit
+initTimeLogManyForm :: forall eff. Eff ( dom :: DOM , ref :: Ref | eff ) Unit
 initTimeLogManyForm = do
-  hs <- J.select ".log-hour"
-  ms <- J.select ".log-minute"
-  minRef <- newRef 0
-  flip (J.on "change") hs $ \_ ob -> do
-    hoursStr <- J.getValue ob
-    hours <- readNum <$> J.getValue ob
-    addMinutes minRef (hours * 60)
-  flip (J.on "change") ms $ \_ ob -> do
-    minutes <- readNum <$> J.getValue ob
-    addMinutes minRef minutes
-  return unit
-  where
-    readNum f = fromMaybe 0 $ (hush $ readString f) >>= stringToNumber
-    hush e = either (const Nothing) Just e
+  t <- allTimeInputs
+  initTimeLogRows t
+  listTop <- J.select "#timeLogMany\\.rows"
+  flip (J.on "addListRow") listTop $ \ _ obj -> do
+    newInputs <- timeInputs obj
+    initTimeLogRows newInputs
+    recalculate
 
-addMinutes
+  recalculateOn "deleteListRow" listTop
+  return unit
+
+allTimeInputs :: forall eff. Eff ( dom :: DOM , ref :: Ref | eff ) TimeInputs
+allTimeInputs = J.body >>= timeInputs
+
+timeInputs :: forall eff. J.JQuery -> Eff ( dom :: DOM , ref :: Ref | eff ) TimeInputs
+timeInputs parent = do
+  hs <- J.find ".log-hour" parent
+  ms <- J.find ".log-minute" parent
+  pure {hours: hs,mins: ms}
+
+initTimeLogRows :: forall eff. TimeInputs -> Eff ( dom :: DOM , ref :: Ref | eff ) Unit
+initTimeLogRows tis = do
+  recalculateOn "change" tis.hours
+  recalculateOn "change" tis.mins
+  return unit
+
+recalculateOn
+  :: forall eff. String -> J.JQuery -> Eff ( dom :: DOM , ref :: Ref | eff ) J.JQuery
+recalculateOn event elt = flip (J.on event) elt $ \ _ _ -> recalculate
+
+recalculate
   :: forall eff
-   . RefVal Number
-  -> Number
-  -> Eff ( dom :: DOM , trace :: Trace , ref :: Ref | eff ) Unit
-addMinutes ref mins = do
-  totalMins <- modifyRef' ref incMins
+   . Eff ( dom :: DOM , ref :: Ref | eff ) Unit
+recalculate = do
+  tis       <- allTimeInputs
+  totalMins <- inputMinutes tis
   let newHours = floor (totalMins / 60)
   let newMins  = totalMins % 60
   he <- J.select "#log-total-hours"
@@ -74,10 +88,21 @@ addMinutes ref mins = do
   J.setText (zeroPad newMins) me
   return unit
   where
+    inputMinutes tis = do
+      ref <- newRef 0
+      addInputs ref tis.hours ((*) 60)
+      addInputs ref tis.mins  id
+      readRef ref
+
+    addInputs ref inputs f =
+      jqEach inputs $ \ _ ob -> do
+        n <- readNum <$> J.getValue ob
+        modifyRef ref ((+) (f n))
+
+
+    readNum f = fromMaybe 0 $ (hush $ readString f) >>= stringToNumber
+    hush e = either (const Nothing) Just e
     zeroPad x = (if x < 10 then "0" else "") ++ show x
-    incMins x =
-      let y = x + mins
-      in { retVal: y , newState: y }
 
 stringToNumber :: String -> Maybe Number
 stringToNumber = stringToNumberForeign Just Nothing
@@ -97,3 +122,21 @@ foreign import stringToNumberForeign
     }
   }
   """ :: (Number -> Maybe Number) -> Maybe Number -> String -> Maybe Number
+
+foreign import jqEach
+  """
+  function jqEach (ob) {
+    return function (f) {
+      return function () {
+        return ob.each(
+          function (i) {
+            return f(i)($(this))();
+          }
+        );
+      }
+    }
+  }
+  """ :: forall eff
+       . J.JQuery
+      -> (Number -> J.JQuery -> Eff ( dom :: DOM | eff ) Unit)
+      -> Eff ( dom :: DOM | eff ) J.JQuery
