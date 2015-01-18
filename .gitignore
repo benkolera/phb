@@ -1,3 +1,5 @@
+.psci
+output/
 dist
 cabal-dev
 *.o

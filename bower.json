@@ -10,10 +10,15 @@
   "private": true,
   "ignore": [
     "**/.*",
-    "node_modules",
     "bower_components",
-    "test",
-    "tests"
+    "node_modules",
+    "output",
+    "tests",
+    "tmp",
+    "bower.json",
+    "Gruntfile.js",
+    "gulpfile.js",
+    "package.json"
   ],
   "dependencies": {
     "jquery": "~2.1.3",
