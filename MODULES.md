@@ -1,26 +1,5 @@
 # Module Documentation
 
-## Module ChartJs
-
-### Types
-
-    data Chart :: *
-
-    data ChartType :: *
-
-    data DoughnutChartConfig where
-      DoughnutChartConfig :: DoughnutChartConfig
-
-    type DoughnutChartData = { highlight :: String, color :: String, label :: String, value :: Number }
-
-
-### Values
-
-    doughnutChart :: forall eff. Chart -> [DoughnutChartData] -> DoughnutChartConfig -> Eff (dom :: DOM | eff) ChartType
-
-    newChart :: forall eff. Context2D -> Eff (dom :: DOM | eff) Chart
-
-
 ## Module Phb
 
 ### Types
