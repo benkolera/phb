@@ -258,8 +258,7 @@ timeLogsSplices = C.withSplices C.runChildren $ do
 
 
 byDayTimeLogsSplices :: PhbSplice
-byDayTimeLogsSplices = do
-  timeLogsSplices . lift $ do
+byDayTimeLogsSplices = timeLogsSplices . lift $ do
     pgs   <- defPaginationParam
     d     <- requireOr400 "Invalid Day" =<< dateParam "day"
     runPersist $ do

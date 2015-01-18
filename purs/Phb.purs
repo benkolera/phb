@@ -21,17 +21,16 @@ heartbeatTimebreakdown
   :: forall eff .
      String
   -> [{value:: Number, label:: String}]
-  -> DoughnutChartConfig
   -> Eff ( pleaseJs :: PleaseJs
          , dom:: DOM
          , canvas :: Canvas
          | eff ) ChartType
-heartbeatTimebreakdown canvasId dataz config = do
+heartbeatTimebreakdown canvasId dataz = do
   Just c <- getCanvasElementById(canvasId)
   ctx    <- getContext2D c
   chart  <- newChart(ctx)
   dataz' <- traverse fillInColor dataz
-  doughnutChart chart dataz' config
+  doughnutChart chart dataz' (responsiveChartConfig defDoughnutChartConfig)
   where
     fillInColor d = do
       c <- makeColor

@@ -169,10 +169,8 @@
     <timeLogData />
 <script>
 $( function () {
-var config = {
-
-};
-var timeBreakdownChart = PS.Phb.heartbeatTimebreakdown("timeBreakdown")(timeLogData)(config)();
+var timeBreakdownChart = PS.Phb.heartbeatTimebreakdown("timeBreakdown")(timeLogData)();
+console.log(timeBreakdownChart);
 $("#timeBreakdownLegend").append(timeBreakdownChart.generateLegend());
 });
 </script>

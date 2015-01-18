@@ -31,6 +31,6 @@
     "tinycolor": "~1.1.1",
     "purescript-math": "~0.1.0",
     "purescript-refs": "~0.1.2",
-    "purescript-chartjs": "~0.1.0"
+    "purescript-chartjs": "~0.4.0"
   }
 }

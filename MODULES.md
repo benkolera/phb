@@ -11,7 +11,7 @@
 
     allTimeInputs :: forall eff. Eff (ref :: Ref, dom :: DOM | eff) TimeInputs
 
-    heartbeatTimebreakdown :: forall eff. String -> [{ label :: String, value :: Number }] -> DoughnutChartConfig -> Eff (canvas :: Canvas, dom :: DOM, pleaseJs :: PleaseJs | eff) ChartType
+    heartbeatTimebreakdown :: forall eff. String -> [{ label :: String, value :: Number }] -> Eff (canvas :: Canvas, dom :: DOM, pleaseJs :: PleaseJs | eff) ChartType
 
     initTimeLogManyForm :: forall eff. Eff (ref :: Ref, dom :: DOM | eff) Unit
 
