@@ -26,6 +26,7 @@ import           Text.Printf                   (printf)
 
 import           Phb.Db
 import qualified Phb.Types.Project as T
+import           Phb.Util
 import           Site.Internal
 
 projectRoutes :: PhbRoutes
@@ -112,7 +113,8 @@ projectFormSplices rts = do
     personChoiceOption (Entity k v) = (k,v ^. personName)
 
 projectRowSplice :: PhbRuntimeSplice [T.Project] -> PhbSplice
-projectRowSplice = rowSplice (ts <> ss)
+projectRowSplice =
+  C.withSplices C.runChildren ("projectRow" ## rowSplice (ts <> ss))
   where
     ts = mapV (C.pureSplice . C.textSplice) $ do
       "name"          ## view T.projectName
@@ -144,15 +146,21 @@ projectRowSplice = rowSplice (ts <> ss)
       (td ^. T.targetDateHandwavy)
 
 listProjectsSplices :: PhbSplice
-listProjectsSplices =
-  C.withSplices
-    C.runChildren
-    ("projectRow" ## projectRowSplice)
-    . lift $ do
-  ct <- liftIO $ getCurrentTime
-  runPersist $ do
-    es <- selectList [] [Desc ProjectId]
-    traverse (loadProject ct) $ es
+listProjectsSplices = C.withSplices C.runChildren splices rts
+  where
+    splices = do
+      "activeProjects"    ## projectRowSplice . fmap (sortByPriority . fst)
+      "completedProjects" ## projectRowSplice . fmap snd
+    rts = lift $ do
+      ct <- liftIO $ getCurrentTime
+      cd <- liftIO $ localDayFromUTC ct
+      runPersist $ do
+        ps <- selectList [] [Desc ProjectId]
+        psW <- traverse (loadProject ct) $ ps
+        pure (partition (isActive cd) $ psW)
+
+    sortByPriority = sortBy (compare `on` (view T.projectPriority))
+    isActive ct = maybe True (>= ct) . (^.T.projectFinished)
 
 createProjectSplices :: PhbSplice
 createProjectSplices = projectFormSplices (pure Nothing)

@@ -99,6 +99,9 @@ activeBacklogStatuses =
   , BacklogInCommercials
   ]
 
+backlogStatusIsActive :: BacklogStatusEnum -> Bool
+backlogStatusIsActive = (`elem` activeBacklogStatuses)
+
 upsertBacklog
   :: (MonadIO m, Applicative m)
   => BacklogInput

@@ -16,6 +16,9 @@ import System.Locale (defaultTimeLocale)
 getCurrentDay :: IO Day
 getCurrentDay = localDay . zonedTimeToLocalTime <$> getZonedTime
 
+getLocalTime :: IO LocalTime
+getLocalTime = zonedTimeToLocalTime <$> getZonedTime
+
 localDayFromUTC :: UTCTime -> IO Day
 localDayFromUTC ct = getCurrentTimeZone
   <&> (localDay . zonedTimeToLocalTime . (`utcToZonedTime` ct))

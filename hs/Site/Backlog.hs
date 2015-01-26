@@ -94,7 +94,8 @@ backlogFormSplices rts = do
     personChoiceOption (Entity k v) = (k,v ^. personName)
 
 backlogRowSplice :: PhbRuntimeSplice [T.Backlog] -> PhbSplice
-backlogRowSplice = rowSplice (ts <> ss)
+backlogRowSplice =
+  C.withSplices C.runChildren ("backlogRow" ## rowSplice (ts <> ss))
   where
     ts = mapV (C.pureSplice . C.textSplice) $ do
       "name"          ## view T.backlogName
@@ -113,15 +114,20 @@ backlogRowSplice = rowSplice (ts <> ss)
     statusClass BacklogRejected = "status-gray"
 
 listBacklogsSplices :: PhbSplice
-listBacklogsSplices =
-  C.withSplices
-    C.runChildren
-    ("backlogRow" ## backlogRowSplice)
-    . lift $ do
-  ct <- liftIO $ getCurrentTime
-  runPersist $ do
-    es <- selectList [] [Desc BacklogId]
-    traverse (loadBacklog ct) $ traceShowId es
+listBacklogsSplices = C.withSplices C.runChildren splices rts
+  where
+    splices = do
+      "activeBacklog"    ## backlogRowSplice . fmap (sortByPriority . fst)
+      "completedBacklog" ## backlogRowSplice . fmap snd
+    rts = lift $ do
+      ct <- liftIO $ getCurrentTime
+      runPersist $ do
+        es <- selectList [] [Desc BacklogId]
+        esW <- traverse (loadBacklog ct) $ es
+        pure (partition isActive $ esW)
+
+    sortByPriority = sortBy (compare `on` (view T.backlogPriority))
+    isActive = fromMaybe True . (^?T.backlogStatusLatest.eVal.backlogStatusStatus.to backlogStatusIsActive)
 
 createBacklogSplices :: PhbSplice
 createBacklogSplices = backlogFormSplices (pure Nothing)

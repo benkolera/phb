@@ -8,7 +8,7 @@ import Prelude     ()
 import Control.Lens     (makeLenses)
 import Data.Text        (Text)
 import Data.Time        (Day)
-import Database.Persist (Entity, Key)
+import Database.Persist (Key)
 
 import qualified Phb.Db.Internal       as D
 import           Phb.Types.Action

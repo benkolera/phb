@@ -3,8 +3,8 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Site.Event where
 
-import           BasePrelude                   hiding (index, insert)
-import           Prelude                       ()
+import BasePrelude hiding (index, insert)
+import Prelude     ()
 
 import           Control.Lens
 import           Control.Monad.Trans           (lift, liftIO)
@@ -25,7 +25,8 @@ import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
 import           Phb.Db
-import qualified Phb.Types.Event               as T
+import qualified Phb.Types.Event as T
+import           Phb.Util
 import           Site.Internal
 
 eventRoutes :: PhbRoutes
@@ -135,7 +136,8 @@ eventFormSplices rts = do
     customerChoiceOption (Entity k v) = (k,v ^. customerName)
 
 eventRowSplice :: PhbRuntimeSplice [T.Event] -> PhbSplice
-eventRowSplice = rowSplice (ts <> ss)
+eventRowSplice =
+  C.withSplices C.runChildren ("eventRow" ## rowSplice (ts <> ss))
   where
     ts = mapV (C.pureSplice . C.textSplice) $ do
       "name"          ## view T.eventName
@@ -155,15 +157,20 @@ eventRowSplice = rowSplice (ts <> ss)
 
 
 listEventsSplices :: PhbSplice
-listEventsSplices =
-  C.withSplices
-    C.runChildren
-    ("eventRow" ## eventRowSplice . fmap traceShowId)
-    . lift $ do
-  ct <- liftIO $ getCurrentTime
-  runPersist $ do
-    es <- selectList [] [Desc EventStart]
-    traverse (loadEvent ct) $ es
+listEventsSplices = C.withSplices C.runChildren splices rts
+  where
+    splices = do
+      "activeEvents"    ## eventRowSplice . fmap fst
+      "completedEvents" ## eventRowSplice . fmap snd
+    rts = lift $ do
+      ct <- liftIO $ getCurrentTime
+      lt <- liftIO $ getLocalTime
+      runPersist $ do
+        ps <- selectList [] [Desc EventId]
+        psW <- traverse (loadEvent ct) $ ps
+        pure (partition (isActive lt) $ psW)
+
+    isActive ct = maybe True (>= ct) . (^.T.eventDuration._2)
 
 createEventSplices :: PhbSplice
 createEventSplices = eventFormSplices (pure Nothing)
