@@ -39,6 +39,7 @@ executable phb
                      , esqueleto                 >= 2.1
                      , heist                     >= 0.14.0.1
                      , lens                      >= 4.5
+                     , lens-datetime             >= 0.2
                      , LDAP                      >= 0.6
                      , map-syntax                >= 0.2
                      , mime-mail                 >= 0.4.5
