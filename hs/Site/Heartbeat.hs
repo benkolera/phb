@@ -28,6 +28,7 @@ import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 import           Text.XmlHtml                            (Node (..))
 
+import           Phb.Dates
 import           Phb.Db
 import qualified Phb.Types      as T
 import           Phb.Util
@@ -48,17 +49,21 @@ heartbeatRoutes =
 -- TODO: Taking a T.Heartbeat instead of a HeartbeatInput is kinda off
 heartbeatForm :: UTCTime -> Maybe (T.Heartbeat) -> PhbForm Text HeartbeatInput
 heartbeatForm ct e = monadic $ do
-  cd <- liftIO $ localDayFromUTC ct
-  (as,bs,es,prjs,ss,lhb) <- runPersist $ (,,,,,)
-    <$> (choiceOpts actionName  <$> loadActiveActions ct)
-    <*> (choiceOpts backlogName <$> loadActiveBacklog ct)
-    <*> (choiceOpts eventName   <$> loadActiveEvents ct)
-    <*> (choiceOpts projectName <$> loadActiveProjects ct)
+  lw  <- liftIO $ prevWeek . weekOfDay <$> localDayFromUTC ct
+  fd  <- fmap (`fromMaybe` finish) . liftIO $ localDayFromUTC ct
+  lhb <- runPersist $ lastHeartbeat fd
+  let sd = fromMaybe (startOfWeek lw) $ start <|> lhbStart lhb
+  st  <- liftIO $ localDayToUTC sd
+  ft  <- liftIO $ localDayToUTC (addDays 1 fd)
+  (as,bs,es,prjs,ss) <- runPersist $ (,,,,)
+    <$> (choiceOpts actionName  <$> loadActiveActionsForPeriod st ft)
+    <*> (choiceOpts backlogName <$> loadActiveBacklogForPeriod st ft)
+    <*> (choiceOpts eventName   <$> loadActiveEventsForPeriod st ft)
+    <*> (choiceOpts projectName <$> loadActiveProjectsForPeriod st ft)
     <*> (traverse (traverse successInput) successes)
-    <*> lastHeartbeat cd
   return $ HeartbeatInput
-    <$> "start"      .: html5DateFormlet (start <|> (lhbStart lhb))
-    <*> "finish"     .: html5DateFormlet (finish <|> Just cd)
+    <$> "start"      .: html5DateFormlet (Just sd)
+    <*> "finish"     .: html5DateFormlet (Just fd)
     <*> "upcoming"   .: listOf (neText upcomingErrMsg) upcoming
     <*> "highlights" .: listOf (neText highlightErrMsg) highlights
     <*> "successes"  .: listOf successForm ss

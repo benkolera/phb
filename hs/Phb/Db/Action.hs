@@ -3,8 +3,8 @@
 {-# LANGUAGE Rank2Types        #-}
 module Phb.Db.Action where
 
-import           BasePrelude
-import           Prelude             ()
+import BasePrelude
+import Prelude     ()
 
 import qualified Control.Lens        as L
 import           Control.Monad.Trans (MonadIO)
@@ -15,7 +15,7 @@ import           Phb.Db.Customer
 import           Phb.Db.Esqueleto
 import           Phb.Db.Internal
 import           Phb.Db.Person
-import qualified Phb.Types.Action    as T
+import qualified Phb.Types.Action as T
 
 loadAction :: (MonadIO m, Applicative m)
   => UTCTime
@@ -45,6 +45,19 @@ loadActiveActions
   => UTCTime
   -> SqlPersistT m [Entity Action]
 loadActiveActions = loadByStatus
+  ActionId
+  ActionStatusAction
+  ActionStatusStart
+  ActionStatusFinish
+  (\ r _ -> [asc (r ^. ActionId)])
+  (\ _ rs -> (rs ^. ActionStatusCompleted) ==. val True)
+
+loadActiveActionsForPeriod
+  :: MonadIO m
+  => UTCTime
+  -> UTCTime
+  -> SqlPersistT m [Entity Action]
+loadActiveActionsForPeriod = loadByStatusPeriod
   ActionId
   ActionStatusAction
   ActionStatusStart

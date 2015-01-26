@@ -92,6 +92,30 @@ loadByStatus pkCol fkCol sCol fCol o w ct = do
     orderBy (o r rs)
     return r
 
+loadByStatusPeriod
+  :: ( PersistEntity r
+    , PersistEntity rs
+    , PersistField k
+    , MonadIO m
+    , PersistEntityBackend r ~ SqlBackend
+    , PersistEntityBackend rs ~ SqlBackend
+    )
+  => EntityField r k
+  -> EntityField rs k
+  -> EntityField rs UTCTime
+  -> EntityField rs (Maybe UTCTime)
+  -> (SqlExpr (Entity r) -> SqlExpr (Entity rs) -> [SqlExpr OrderBy])
+  -> (SqlExpr (Entity r) -> SqlExpr (Entity rs) -> SqlExpr (Value Bool))
+  -> UTCTime
+  -> UTCTime
+  -> SqlPersistT m [Entity r]
+loadByStatusPeriod pkCol fkCol sCol fCol o w st ft = do
+  selectDistinct $ from $ \(r `InnerJoin` rs) -> do
+    on (r ^. pkCol ==. rs ^. fkCol)
+    where_ ((w r rs) &&. (overlapsPeriod rs sCol fCol st ft))
+    orderBy (o r rs)
+    return r
+
 withinPeriod
   :: ( Esqueleto query expr backend
     , PersistEntity val
@@ -121,3 +145,18 @@ withinBounds r sc fc ct =
   -- Being inclusive of the start and end is going to be a terabad mistake
   -- but it is necessary given some things are Day columns and can thus
   -- start and end on the same instant.
+
+overlapsPeriod
+  :: ( Esqueleto query expr backend
+    , PersistEntity val
+    , PersistField t )
+  => expr (Entity val)
+  -> EntityField val t
+  -> EntityField val (Maybe t)
+  -> t
+  -> t
+  -> expr (Value Bool)
+overlapsPeriod r sc fc st ft =
+  withinBounds r sc fc st
+  ||. withinBounds r sc fc ft
+  ||. ((r ^.sc >=. val st) &&. (r ^.fc <=. (val $ Just ft)))

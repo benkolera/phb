@@ -13,12 +13,12 @@ module Phb.Auth
     , userDbKey
     ) where
 
-import           BasePrelude                  hiding (Handler, left)
-import           Prelude                      ()
+import BasePrelude hiding (Handler, left)
+import Prelude     ()
 
 import           Control.Error
 import           Control.Lens
-import           Control.Monad.Logger         (NoLoggingT)
+import           Control.Monad.Logger         (LoggingT)
 import           Control.Monad.Reader         (runReaderT)
 import           Control.Monad.Trans
 import           Control.Monad.Trans.Resource (ResourceT)
@@ -33,8 +33,8 @@ import           Snap.Snaplet.Persistent
 import           Snap.Snaplet.Session
 import           Web.ClientSession            (getKey)
 
-import           Phb.Db                       hiding (lookupByLogin)
-import qualified Phb.Db                       as D
+import           Phb.Db   hiding (lookupByLogin)
+import qualified Phb.Db   as D
 import           Phb.Ldap
 import           Phb.Util
 
@@ -139,6 +139,6 @@ db2AuM = fmap (fmap db2Au)
 withAuthPool
   :: (MonadIO m)
   => PhbAuthManager
-  -> SqlPersistT (ResourceT (NoLoggingT IO)) a
+  -> SqlPersistT (ResourceT (LoggingT IO)) a
   -> m a
 withAuthPool = withPool . view phbPool

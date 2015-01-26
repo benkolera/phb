@@ -60,3 +60,13 @@ loadActiveEvents ct =
   select $ from $ \ e -> do
     where_ (withinBounds e EventStart EventFinish ct)
     return e
+
+loadActiveEventsForPeriod
+  :: MonadIO m
+  => UTCTime
+  -> UTCTime
+  -> SqlPersistT m [Entity Event]
+loadActiveEventsForPeriod st ft =
+  select $ from $ \ e -> do
+    where_ (overlapsPeriod e EventStart EventFinish st ft)
+    return e

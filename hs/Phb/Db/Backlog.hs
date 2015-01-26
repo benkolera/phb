@@ -79,6 +79,19 @@ loadActiveBacklog = loadByStatus
   (\ r _ -> [desc (r ^. BacklogPriority)])
   (\ _ rs -> (rs ^. BacklogStatusStatus) `in_` (valList activeBacklogStatuses))
 
+loadActiveBacklogForPeriod
+  :: MonadIO m
+  => UTCTime
+  -> UTCTime
+  -> SqlPersistT m [Entity Backlog]
+loadActiveBacklogForPeriod = loadByStatusPeriod
+  BacklogId
+  BacklogStatusBacklog
+  BacklogStatusStart
+  BacklogStatusFinish
+  (\ r _ -> [desc (r ^. BacklogPriority)])
+  (\ _ rs -> (rs ^. BacklogStatusStatus) `in_` (valList activeBacklogStatuses))
+
 activeBacklogStatuses :: [BacklogStatusEnum]
 activeBacklogStatuses =
   [ BacklogScoped

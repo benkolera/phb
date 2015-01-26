@@ -94,6 +94,19 @@ loadActiveProjects ct = do
     orderBy [desc $ p E.^.ProjectPriority]
     return p
 
+loadActiveProjectsForPeriod
+  :: MonadIO m
+  => UTCTime
+  -> UTCTime
+  -> SqlPersistT m [Entity Project]
+loadActiveProjectsForPeriod st ft = do
+  sd <- liftIO $ localDayFromUTC st
+  fd <- liftIO $ localDayFromUTC ft
+  select $ from $ \ p -> do
+    where_ (overlapsPeriod p ProjectStarted ProjectFinished sd fd)
+    orderBy [desc $ p E.^.ProjectPriority]
+    return p
+
 upsertProjectInput
   :: (MonadIO m,Applicative m)
   => ProjectInput

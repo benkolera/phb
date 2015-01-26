@@ -17,17 +17,17 @@ module Snap.Snaplet.Persistent
   ) where
 
 -------------------------------------------------------------------------------
-import           Control.Monad.Catch          as EC
-import           Control.Monad.Logger
-import           Control.Monad.State
-import           Control.Monad.Trans.Reader
-import           Control.Monad.Trans.Resource
-import           Control.Retry
-import           Data.Configurator
-import           Data.Configurator.Types
-import           Database.Persist.Postgresql  hiding (get)
-import           Snap.Core
-import           Snap.Snaplet                 as S
+import Control.Monad.Catch          as EC
+import Control.Monad.Logger
+import Control.Monad.State
+import Control.Monad.Trans.Reader
+import Control.Monad.Trans.Resource
+import Control.Retry
+import Data.Configurator
+import Data.Configurator.Types
+import Database.Persist.Postgresql  hiding (get)
+import Snap.Core
+import Snap.Snaplet                 as S
 -------------------------------------------------------------------------------
 
 instance MonadThrow Snap where
@@ -45,10 +45,6 @@ newtype PersistState = PersistState { persistPool :: ConnectionPool }
 -- A default instance is provided for (Handler b PersistState).
 class MonadIO m => HasPersistPool m where
     getPersistPool :: m ConnectionPool
-
-
--- instance HasPersistPool m => HasPersistPool (NoLoggingT m) where
---     getPersistPool = runNoLoggingT getPersistPool
 
 instance HasPersistPool (S.Handler b PersistState) where
     getPersistPool = gets persistPool
@@ -69,12 +65,12 @@ instance MonadIO m => HasPersistPool (ReaderT ConnectionPool m) where
 -- where migrateAll is the migration function that was auto-generated
 -- by the QQ statement in your persistent schema definition in the
 -- call to 'mkMigrate'.
-initPersist :: SqlPersistT (NoLoggingT IO) a -> SnapletInit b PersistState
+initPersist :: SqlPersistT (LoggingT IO) a -> SnapletInit b PersistState
 initPersist migration = makeSnaplet "persist" description datadir $ do
     conf <- getSnapletUserConfig
-    p <- liftIO . runNoLoggingT $ mkSnapletPgPool conf
+    p <- liftIO . runStderrLoggingT $ mkSnapletPgPool conf
 
-    void . liftIO . runNoLoggingT $ runSqlPool migration p
+    void . liftIO . runStderrLoggingT $ runSqlPool migration p
     return $ PersistState p
   where
     description = "Snaplet for persistent DB library"
@@ -96,7 +92,7 @@ mkSnapletPgPool = mkPgPool
 -------------------------------------------------------------------------------
 -- | Runs a SqlPersist action in any monad with a HasPersistPool instance.
 runPersist :: (HasPersistPool m, MonadSnap m)
-           => SqlPersistT (ResourceT (NoLoggingT IO)) b
+           => SqlPersistT (ResourceT (LoggingT IO)) b
            -- ^ Run given Persistent action in the defined monad.
            -> m b
 runPersist action = do
@@ -113,9 +109,9 @@ runPersist action = do
 -- will often times throw a `Couldn'tGetSQLConnection` type value.
 withPool :: (MonadIO m)
          => ConnectionPool
-         -> SqlPersistT (ResourceT (NoLoggingT IO)) a
+         -> SqlPersistT (ResourceT (LoggingT IO)) a
          -> m a
 withPool cp f = liftIO $ recoverAll retryPolicy (runF f cp)
   where
     retryPolicy = constantDelay 50000 <> limitRetries 5
-    runF f' cp' = liftIO . runNoLoggingT . runResourceT $ runSqlPool f' cp'
+    runF f' cp' = liftIO . runStderrLoggingT . runResourceT $ runSqlPool f' cp'

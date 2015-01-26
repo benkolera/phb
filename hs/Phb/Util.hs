@@ -20,6 +20,11 @@ localDayFromUTC :: UTCTime -> IO Day
 localDayFromUTC ct = getCurrentTimeZone
   <&> (localDay . zonedTimeToLocalTime . (`utcToZonedTime` ct))
 
+localDayToUTC :: Day -> IO UTCTime
+localDayToUTC d = do
+  tz <- getCurrentTimeZone
+  pure . localTimeToUTC tz . LocalTime d $ midnight
+
 parseDay :: String -> Maybe Day
 parseDay = parseTime defaultTimeLocale "%F"
 
