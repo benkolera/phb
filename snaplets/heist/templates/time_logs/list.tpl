@@ -13,6 +13,16 @@
         </ifQueries>
         <h2>Add Filter</h2>
         <a href="${currentUrl}&user=me" class="btn btn-default">Owner: Me</a>
+        <div class="btn-group">
+          <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+            Owner <span class="caret"></span>
+          </button>
+          <ul class="dropdown-menu" role="menu">
+            <possibleOwners>
+              <li><a href="${currentUrl}&user=${userId}"><userName /></a></li>
+            </possibleOwners>
+          </ul>
+        </div>
         <a href="${currentUrl}&period=today" class="btn btn-default">Period: Today</a>
         <a href="${currentUrl}&period=this_week" class="btn btn-default">Period: This Week</a>
         <a href="${currentUrl}&period=this_month" class="btn btn-default">Period: This Month</a>

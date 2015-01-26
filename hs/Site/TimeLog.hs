@@ -267,28 +267,36 @@ timeLogQueryLinkSplices = mapV (C.pureSplice . C.textSplice) $ do
   "title" ## fst
   "href"  ## joinParams . snd
 
+possibleOwnerSplices :: Splices (PhbRuntimeSplice (Entity Person) -> PhbSplice)
+possibleOwnerSplices = mapV (C.pureSplice . C.textSplice) $ do
+  "userId"    ## (^.eKey.to keyToText)
+  "userName"  ## (^.eVal.personName)
+
 timeLogsSplices
   :: PhbRuntimeSplice
      ( Maybe TimeLogPeriod
      , [Entity Person]
      , Maybe (Int64,Int64)
+     , [Entity Person]
      , [TimeLogWhole]
      )
   -> PhbSplice
 timeLogsSplices = C.withSplices C.runChildren $ do
   "currentUrl" ## (C.pureSplice . C.textSplice) currentUrl
   "ifQueries"  ## showIfTrue . fmap hasQueries
-  "summary"    ## (timeSummaryDataSplices . fmap (^._4.to summariseTimeLogs))
+  "summary"    ## (timeSummaryDataSplices . fmap (^._5.to summariseTimeLogs))
   "timeLogQueryLinks" ##
     C.manyWithSplices C.runChildren timeLogQueryLinkSplices . fmap calculateLinks
   "timeLogRow"        ##
-    C.manyWithSplices C.runChildren timeLogSplices . fmap (view _4)
+    C.manyWithSplices C.runChildren timeLogSplices . fmap (view _5)
+  "possibleOwners" ##
+    C.manyWithSplices C.runChildren possibleOwnerSplices . fmap (view _4)
 
   where
-    currentUrl (p,us,_,_) = ("/time_logs?" <>) . joinParams . fmap snd $ allQueryParts p us
-    hasQueries (p,us,_,_) = not . null $ allQueryParts p us
+    currentUrl (p,us,_,_,_) = ("/time_logs?" <>) . joinParams . fmap snd $ allQueryParts p us
+    hasQueries (p,us,_,_,_) = not . null $ allQueryParts p us
 
-    calculateLinks (p,us,_,_)   =
+    calculateLinks (p,us,_,_,_)   =
       fmap mkQueryLink
       . multiply [] []
       $ allQueryParts p us
@@ -320,7 +328,8 @@ listTimeLogsSplices = do
     runPersist $ do
       twL <- queryTimeLogs pp ups pgs
       us  <- traverse getEntity ups <&> catMaybes
-      pure (pp,us,pgs,twL)
+      tlp <- timeLoggablePeople
+      pure (pp,us,pgs,tlp,twL)
   where
     parsePeriod cd s =
       (TimeLogsForMonth <$> parseMonth' cd s) <|>

@@ -1,14 +1,14 @@
 {-# LANGUAGE TypeFamilies #-}
 module Phb.Db.Person where
 
-import           BasePrelude         hiding (on)
-import           Prelude             ()
+import BasePrelude hiding (on)
+import Prelude     ()
 
-import           Control.Monad.Trans (MonadIO)
-import           Data.Time           (Day)
-import           Database.Esqueleto
+import Control.Monad.Trans (MonadIO)
+import Data.Time           (Day)
+import Database.Esqueleto
 
-import           Phb.Db.Internal
+import Phb.Db.Internal
 
 loadRelatedPeople
   :: ( PersistEntity r
@@ -25,6 +25,13 @@ loadRelatedPeople custFkCol relIdCol relId =
     on (bc ^. custFkCol ==. c ^. PersonId)
     where_ (val relId ==. bc ^. relIdCol)
     return c
+
+timeLoggablePeople
+  :: (MonadIO m) => SqlPersistT m [Entity Person]
+timeLoggablePeople = select $ from $ \ p -> do
+  where_ (p ^. PersonLogsTime ==. val True)
+  orderBy [asc $ p ^. PersonName]
+  return p
 
 missingTimeLogsFor
   :: (MonadIO m)
