@@ -3,7 +3,7 @@
 module Phb.Dates
   ( DayOfWeek(..)
   , Week
-  , Day
+  , Month
   , dayOfWeek
   , prevWeekday
   , nextWeekday
@@ -25,7 +25,7 @@ module Phb.Dates
   , weekNum
   , monthYear
   , monthNum
-  , ) where
+  ) where
 
 import BasePrelude
 import Prelude     ()

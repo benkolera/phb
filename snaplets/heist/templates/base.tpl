@@ -46,7 +46,7 @@
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Time Logs <span class="caret"></span></a>
                 <ul class="dropdown-menu" role="menu">
                   <li><a href="/time_logs/create">Log Time</a></li>
-                  <li><a href="/time_logs/mine">My Time Logs</a></li>
+                  <li><a href="/time_logs?user=me">My Time Logs</a></li>
                   <li><a href="/time_logs">All Time Logs</a></li>
                 </ul>
               </li>

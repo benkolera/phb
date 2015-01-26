@@ -13,7 +13,6 @@ import qualified Data.ByteString.Char8                   as B
 import           Data.Map.Syntax
 import           Data.Text                               (Text)
 import qualified Data.Text                               as Text
-import           Data.Text.Encoding                      (encodeUtf8)
 import           Data.Text.Lens                          (unpacked)
 import           Data.Time                               (UTCTime, addDays,
                                                           getCurrentTime)
@@ -27,16 +26,16 @@ import           Snap.Snaplet.Persistent                 (runPersist)
 import           Text.Digestive                          hiding (Success)
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
-import           Text.Printf                             (printf)
 import           Text.XmlHtml                            (Node (..))
 
 import           Phb.Db
-import qualified Phb.Types     as T
+import qualified Phb.Types      as T
 import           Phb.Util
-import           Site.Backlog  (backlogRowSplice)
-import           Site.Event    (eventRowSplice)
+import           Site.Backlog   (backlogRowSplice)
+import           Site.Event     (eventRowSplice)
 import           Site.Internal
-import           Site.Project  (projectRowSplice)
+import           Site.Project   (projectRowSplice)
+import           Site.TimeGraph (timeSummaryDataSplices)
 
 heartbeatRoutes :: PhbRoutes
 heartbeatRoutes =
@@ -170,26 +169,6 @@ actionRowSplice = rowSplice (ts <> ss)
       "customers" ## spliceLines . fmap (^..T.actionCustomers.traverse.eVal.customerName)
       "notes"     ## spliceLines . fmap (^. T.actionNoteLatest.eVal.actionNoteNote.to Text.lines)
 
-timeLogDataSplice :: PhbRuntimeSplice [T.HeartbeatTimeLog] -> PhbSplice
-timeLogDataSplice rts = do
-  so <- pure . C.yieldPure $ fromByteString "<script>\nvar timeLogData=["
-  js <- return $ C.yieldRuntime $ do
-    s <- rts
-    return
-      . fromByteString
-      . B.intercalate ","
-      . fmap timeLogWholeJson
-      . filter ((>= 0.5) . view T.heartbeatTimeLogHours)$ s
-  sc <- pure . C.yieldPure $ fromByteString "];\n</script>"
-  return . fold $ [so,js,sc]
-  where
-    timeLogWholeJson tlw = fold
-      [ "{value: "
-      , tlw^.T.heartbeatTimeLogHours.to (printf "%.3f").to B.pack
-      , ", label: '"
-      , tlw^.T.heartbeatTimeLogLabel.to encodeUtf8
-      , "'}"
-      ]
 
 successRowSplice :: PhbRuntimeSplice [T.Success] -> PhbSplice
 successRowSplice = rowSplice (ts <> ss)
@@ -231,7 +210,8 @@ wholeHeartbeatSplices = C.withSplices C.runChildren (ss <> rs)
       "projectRow"     ## (projectRowSplice . fmap (^. T.heartbeatProjects))
       "backlogRow"     ## (backlogRowSplice . fmap (^. T.heartbeatBacklog))
       "eventRow"       ## (eventRowSplice . fmap (^. T.heartbeatEvents))
-      "timeLogData"    ## (timeLogDataSplice . fmap (^. T.heartbeatTimeLogs))
+      "heartbeatTime"  ## (timeSummaryDataSplices . fmap (^. T.heartbeatTimeSummary))
+
     btnClass Nothing = "disabled"
     btnClass _       = ""
     projectLink k    = "/heartbeats/" <> spliceKey k

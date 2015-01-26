@@ -301,5 +301,8 @@ diff oldList newList = (toRem,toAdd)
     toRem = S.difference old new
     toAdd = S.difference new old
 
-paginate :: Int -> Int -> [SelectOpt record]
-paginate p pw = [LimitTo pw,OffsetBy ((p-1)*pw)]
+paginate :: Int64 -> Int64 -> (Int64,Int64)
+paginate p pw = (pw,(p-1)*pw)
+
+paginateOpts :: (Int64,Int64) -> [SelectOpt record]
+paginateOpts (l,o) = [LimitTo $ fromIntegral l,OffsetBy $ fromIntegral o]

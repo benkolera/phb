@@ -11,8 +11,8 @@
   <tbody>
     <timeLogRow>
       <tr>
-        <td><a href="/time_logs/by_user/${personId}"><username /></a></td>
-        <td><a href="/time_logs/by_day/${day}"><day /></a></td>
+        <td><a href="${currentUrl}&user=${personId}"><username /></a></td>
+        <td><a href="${currentUrl}&period=${day}"><day /></a></td>
         <td><minutes /></td>
         <td><timeAgainst /></td>
         <td><notes /></td>

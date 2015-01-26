@@ -11,8 +11,6 @@ import           Control.Lens               hiding (Action, from, (^.))
 import qualified Control.Lens               as L
 import           Control.Monad.IO.Class     (MonadIO)
 import           Control.Monad.Trans.Reader (ReaderT)
-import qualified Data.Function              as F
-import qualified Data.Map                   as M
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import           Data.Time                  (Day, UTCTime (..))
@@ -30,7 +28,6 @@ import           Phb.Db.Success
 import           Phb.Db.TimeLog
 import qualified Phb.Types.Heartbeat as T
 import qualified Phb.Types.Success   as T
-import qualified Phb.Types.TimeLog   as T
 
 data HeartbeatInput = HeartbeatInput
   { _heartbeatInputStart      :: Day
@@ -72,7 +69,7 @@ loadHeartbeat (Entity hId h) = do
     bs
     es
     as
-    (supportLogSummary stl)
+    (summariseTimeLogs stl)
 
   where
     success (Entity sId (Success _ what achievments)) = do
@@ -89,23 +86,6 @@ loadHeartbeat (Entity hId h) = do
         orderBy [desc $ priorityCol x]
         return rel
       traverse ((load =<<) . getEntityJust . (L.^. eVal . relIdL)) rels
-
-    supportLogSummary =
-      fmap (\ (k,(hs,ps)) -> T.HeartbeatTimeLog k (getSum hs) ps)
-      . reverse
-      . sortBy (compare `F.on` (fst . snd))
-      . M.toList
-      . foldl' accumTimeLogSummaryMap M.empty
-
-    accumTimeLogSummaryMap m tls =
-      M.insertWith (<>) (supportLogSummaryLabel tls) (supportLogSummaryVal tls) m
-
-    supportLogSummaryVal (T.TimeLogWhole tl p _) =
-      ( tl L.^.eVal.timeLogMinutes.to fromIntegral.to (/60.0).to Sum
-      , [p]
-      )
-
-    supportLogSummaryLabel = (L.^.T.timeLogWholeLink._Just.T.timeLogLinkName)
 
 nextHeartbeat
   :: (MonadIO m, Functor m)

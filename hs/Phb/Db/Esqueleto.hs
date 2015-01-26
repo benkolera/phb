@@ -92,6 +92,19 @@ loadByStatus pkCol fkCol sCol fCol o w ct = do
     orderBy (o r rs)
     return r
 
+withinPeriod
+  :: ( Esqueleto query expr backend
+    , PersistEntity val
+    , PersistField typ
+    )
+  => expr (Entity val)
+  -> EntityField val typ
+  -> typ
+  -> typ
+  -> expr (Value Bool)
+withinPeriod r dc sd fd =
+  ((r ^. dc) >=. (val sd)) &&. (r ^. dc) <=. (val $ fd)
+
 withinBounds
   :: ( Esqueleto query expr backend
     , PersistEntity val

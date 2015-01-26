@@ -225,7 +225,7 @@ neText errMsg = check errMsg isNotEmpty . text
 dateParam :: ByteString -> PhbHandler (Maybe Day)
 dateParam l = (parseDay . B.unpack =<<) <$> getParam l
 
-pageParam :: PhbHandler Int
+pageParam :: PhbHandler Int64
 pageParam = do
   pMay <- getParam "page"
   pure
@@ -247,11 +247,14 @@ showIfTrue r = do
     then C.codeGen action
     else return mempty
 
-paginationParam  :: Int -> PhbHandler [SelectOpt r]
+paginationParam  :: Int64 -> PhbHandler (Int64,Int64)
 paginationParam pw = flip paginate pw <$> pageParam
 
-defPaginationParam :: PhbHandler [SelectOpt r]
+defPaginationParam :: PhbHandler (Int64,Int64)
 defPaginationParam = paginationParam 25
+
+defPaginationOpts :: PhbHandler [SelectOpt t]
+defPaginationOpts = paginateOpts <$> defPaginationParam
 
 userOrIndex :: PhbHandler () -> PhbHandler ()
 userOrIndex = requireUser auth notLoggedIn
