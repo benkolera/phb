@@ -4,8 +4,8 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Phb.Db.Project where
 
-import BasePrelude
-import Prelude     ()
+import           BasePrelude
+import           Prelude             ()
 
 import           Control.Lens        hiding (from, (<.))
 import           Control.Monad.Trans (MonadIO, liftIO)
@@ -20,7 +20,7 @@ import           Phb.Db.Enums
 import           Phb.Db.Esqueleto
 import           Phb.Db.Internal
 import           Phb.Db.Person
-import qualified Phb.Types.Project as T
+import qualified Phb.Types.Project   as T
 import           Phb.Util
 
 data ProjectInput = ProjectInput
@@ -42,6 +42,7 @@ projectStatusColourHuman :: StatusColourEnum -> Text
 projectStatusColourHuman StatusGreen = "Green"
 projectStatusColourHuman StatusAmber = "Amber"
 projectStatusColourHuman StatusRed   = "Red"
+projectStatusColourHuman StatusGray  = "Gray"
 
 loadProject :: (MonadIO m, Applicative m)
   => UTCTime

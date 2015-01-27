@@ -3,8 +3,9 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Site.Project where
 
-import BasePrelude hiding (bool, index, insert, phase)
-import Prelude     ()
+import           BasePrelude                   hiding (bool, index, insert,
+                                                phase)
+import           Prelude                       ()
 
 import           Control.Lens
 import           Control.Monad.Trans           (lift, liftIO)
@@ -25,7 +26,7 @@ import           Text.Digestive.Snap
 import           Text.Printf                   (printf)
 
 import           Phb.Db
-import qualified Phb.Types.Project as T
+import qualified Phb.Types.Project             as T
 import           Phb.Util
 import           Site.Internal
 
@@ -131,6 +132,7 @@ projectRowSplice =
     statusClass StatusGreen = "status-green"
     statusClass StatusAmber = "status-amber"
     statusClass StatusRed   = "status-red"
+    statusClass StatusGray  = "status-grey"
     statusLines ps =
       (ps ^. T.projectStatusPhase : ps ^. T.projectStatusDesc . to toList )
     effortSplices = mapV (C.pureSplice . C.textSplice) $ do

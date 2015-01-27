@@ -15,8 +15,8 @@ module Phb.Db.Enums
   , StatusColourEnum(..)
   ) where
 
-import Control.Lens
-import Database.Persist.TH (derivePersistField)
+import           Control.Lens
+import           Database.Persist.TH (derivePersistField)
 
 data BacklogStatusEnum
   = BacklogScoped
@@ -31,6 +31,7 @@ data StatusColourEnum
   = StatusGreen
   | StatusAmber
   | StatusRed
+  | StatusGray
   deriving (Show,Read,Eq,Enum,Bounded)
 makePrisms ''StatusColourEnum
 
