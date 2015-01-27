@@ -2,8 +2,8 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Site.Heartbeat where
 
-import BasePrelude hiding (insert)
-import Prelude     ()
+import           BasePrelude                             hiding (insert)
+import           Prelude                                 ()
 
 import           Blaze.ByteString.Builder.ByteString     (fromByteString)
 import           Blaze.ByteString.Builder.Internal.Types (Builder)
@@ -30,13 +30,13 @@ import           Text.XmlHtml                            (Node (..))
 
 import           Phb.Dates
 import           Phb.Db
-import qualified Phb.Types      as T
+import qualified Phb.Types                               as T
 import           Phb.Util
-import           Site.Backlog   (backlogRowSplice)
-import           Site.Event     (eventRowSplice)
+import           Site.Backlog                            (backlogRowSplice)
+import           Site.Event                              (eventRowSplice)
 import           Site.Internal
-import           Site.Project   (projectRowSplice)
-import           Site.TimeGraph (timeSummaryDataSplices)
+import           Site.Project                            (projectRowSplice)
+import           Site.TimeGraph                          (timeSummaryDataSplices)
 
 heartbeatRoutes :: PhbRoutes
 heartbeatRoutes =
@@ -212,9 +212,9 @@ wholeHeartbeatSplices = C.withSplices C.runChildren (ss <> rs)
       "upcomingEvents" ## (spliceUl . (fmap (^. T.heartbeatUpcoming)))
       "actionRow"      ## (actionRowSplice . fmap (^. T.heartbeatActions))
       "successRow"     ## (successRowSplice . fmap (^. T.heartbeatSuccesses))
-      "projectRow"     ## (projectRowSplice . fmap (^. T.heartbeatProjects))
-      "backlogRow"     ## (backlogRowSplice . fmap (^. T.heartbeatBacklog))
-      "eventRow"       ## (eventRowSplice . fmap (^. T.heartbeatEvents))
+      "projects"       ## (projectRowSplice . fmap (^. T.heartbeatProjects))
+      "backlog"        ## (backlogRowSplice . fmap (^. T.heartbeatBacklog))
+      "events"         ## (eventRowSplice . fmap (^. T.heartbeatEvents))
       "heartbeatTime"  ## (timeSummaryDataSplices . fmap (^. T.heartbeatTimeSummary))
 
     btnClass Nothing = "disabled"

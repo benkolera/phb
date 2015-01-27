@@ -51,6 +51,7 @@
       </div>
     </div>
     <h2>Projects</h2>
+    <projects>
     <table class="table table-centered">
       <thead>
         <tr>
@@ -90,7 +91,9 @@
         </projectRow>
       </tbody>
     </table>
+    </projects>
     <h2>Backlog</h2>
+    <backlog>
     <table class="table table-centered">
       <thead>
         <tr>
@@ -113,7 +116,9 @@
         </backlogRow>
       </tbody>
     </table>
+    </backlog>
     <h2>Operational Events</h2>
+    <events>
     <table class="table table-centered">
       <thead>
         <tr>
@@ -140,6 +145,7 @@
         </eventRow>
       </tbody>
     </table>
+    </events>
     <h2>Action Items</h2>
     <table class="table table-centered">
       <thead>
