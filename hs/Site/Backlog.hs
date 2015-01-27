@@ -2,8 +2,8 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Site.Backlog where
 
-import BasePrelude hiding (insert)
-import Prelude     ()
+import           BasePrelude                   hiding (insert)
+import           Prelude                       ()
 
 import           Control.Lens
 import           Control.Monad.Trans           (lift, liftIO)
@@ -23,7 +23,7 @@ import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
 import           Phb.Db
-import qualified Phb.Types.Backlog as T
+import qualified Phb.Types.Backlog             as T
 import           Phb.Util
 import           Site.Internal
 
@@ -126,7 +126,7 @@ listBacklogsSplices = C.withSplices C.runChildren splices rts
         esW <- traverse (loadBacklog ct) $ es
         pure (partition isActive $ esW)
 
-    sortByPriority = sortBy (compare `on` (view T.backlogPriority))
+    sortByPriority = reverse . sortBy (compare `on` (view T.backlogPriority))
     isActive = fromMaybe True . (^?T.backlogStatusLatest.eVal.backlogStatusStatus.to backlogStatusIsActive)
 
 createBacklogSplices :: PhbSplice

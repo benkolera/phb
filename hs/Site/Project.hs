@@ -161,7 +161,7 @@ listProjectsSplices = C.withSplices C.runChildren splices rts
         psW <- traverse (loadProject ct) $ ps
         pure (partition (isActive cd) $ psW)
 
-    sortByPriority = sortBy (compare `on` (view T.projectPriority))
+    sortByPriority = reverse . sortBy (compare `on` (view T.projectPriority))
     isActive ct = maybe True (>= ct) . (^.T.projectFinished)
 
 createProjectSplices :: PhbSplice
