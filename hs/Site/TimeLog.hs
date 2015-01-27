@@ -5,8 +5,8 @@
 {-# LANGUAGE TupleSections     #-}
 module Site.TimeLog where
 
-import BasePrelude hiding (insert)
-import Prelude     ()
+import           BasePrelude                   hiding (insert)
+import           Prelude                       ()
 
 import           Control.Error
 import           Control.Lens                  hiding (Action)
@@ -35,14 +35,14 @@ import           Text.Digestive                as DF
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
-import Phb.Auth          (userDbKey)
-import Phb.Dates
-import Phb.Db
-import Phb.Mail
-import Phb.Types.TimeLog
-import Phb.Util
-import Site.Internal
-import Site.TimeGraph    (timeSummaryDataSplices)
+import           Phb.Auth                      (userDbKey)
+import           Phb.Dates
+import           Phb.Db
+import           Phb.Mail
+import           Phb.Types.TimeLog
+import           Phb.Util
+import           Site.Internal
+import           Site.TimeGraph                (timeSummaryDataSplices)
 
 handlePester :: PhbHandler ()
 handlePester = do
@@ -231,7 +231,7 @@ createTimeLogSplices = do
     createTimeLog x = do
       void . runPersist $ insertMany (newTimeLogs x)
       flashSuccess $ "Timelog Created"
-      redirect "/time_logs/mine"
+      redirect "/time_logs?user=me"
 
     newTimeLogs (TimeLogInputMany p dy rs) = toList
       . fmap (newTimeLog p dy)
@@ -337,8 +337,10 @@ listTimeLogsSplices = do
       (TimeLogsForDay  <$> parseDay' cd s)
 
     parseMonth' cd "this_month" = Just $ monthOfDay cd
+    parseMonth' cd "last_month" = Just . prevMonth $ monthOfDay cd
     parseMonth'  _  s           = parseMonth s
     parseWeek' cd  "this_week"  = Just $ weekOfDay cd
+    parseWeek' cd  "last_week"  = Just . prevWeek $ weekOfDay cd
     parseWeek'  _  s            = parseWeek s
     parseDay' cd   "today"      = Just cd
     parseDay'  _  s             = parseDay s

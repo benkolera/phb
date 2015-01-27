@@ -25,7 +25,9 @@
         </div>
         <a href="${currentUrl}&period=today" class="btn btn-default">Period: Today</a>
         <a href="${currentUrl}&period=this_week" class="btn btn-default">Period: This Week</a>
+        <a href="${currentUrl}&period=last_week" class="btn btn-default">Period: Last Week</a>
         <a href="${currentUrl}&period=this_month" class="btn btn-default">Period: This Month</a>
+        <a href="${currentUrl}&period=this_month" class="btn btn-default">Period: Last Month</a>
         <hr/>
         <a href="/time_logs/create" class="btn btn-success">New Time Log</a>
       </div>
