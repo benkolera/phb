@@ -25,9 +25,9 @@ import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 import           Text.Printf                   (printf)
 
+import           Phb.Dates
 import           Phb.Db
 import qualified Phb.Types.Project             as T
-import           Phb.Util
 import           Site.Internal
 
 projectRoutes :: PhbRoutes

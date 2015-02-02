@@ -5,15 +5,14 @@
 {-# LANGUAGE TupleSections     #-}
 module Site.TimeLog where
 
-import BasePrelude hiding (insert)
-import Prelude     ()
+import           BasePrelude                   hiding (insert)
+import           Prelude                       ()
 
 import           Control.Error
 import           Control.Lens                  hiding (Action)
 import           Control.Monad.IO.Class        (MonadIO, liftIO)
 import           Control.Monad.Reader          (runReaderT)
 import           Control.Monad.Trans           (lift)
-import qualified Data.ByteString.Char8         as B
 import           Data.List.NonEmpty            (NonEmpty (..))
 import qualified Data.List.NonEmpty            as NEL
 import           Data.Map.Syntax
@@ -25,24 +24,21 @@ import           Database.Persist.Sql
 import           Heist
 import qualified Heist.Compiled                as C
 import qualified Heist.Compiled.LowLevel       as C
-import           Snap                          (getParam, getRequest, ifTop,
-                                                redirect, rqParam, with)
-import           Snap.Snaplet.Auth
+import           Snap                          (getParam, ifTop, redirect)
 import           Snap.Snaplet.Heist.Compiled
 import           Snap.Snaplet.Persistent       (runPersist)
 import           Text.Digestive                as DF
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
-import Phb.Auth          (userDbKey)
-import Phb.Dates
-import Phb.Db
-import Phb.Mail
-import Phb.Types.Task
-import Phb.Types.TimeLog
-import Phb.Util
-import Site.Internal
-import Site.TimeGraph    (timeSummaryDataSplices)
+import           Phb.Dates
+import           Phb.Db
+import           Phb.Mail
+import           Phb.Types.Task
+import           Phb.Types.TimeLog
+import           Phb.Util
+import           Site.Internal
+import           Site.TimeGraph                (timeSummaryDataSplices)
 
 handlePester :: PhbHandler ()
 handlePester = do
@@ -167,7 +163,7 @@ taskOptions
   -> Day
   -> Db m ([(Key Task, Text)])
 taskOptions pk cd = do
-  tw <- loadTasksForPersonForDay pk cd
+  tw <- loadTasksForPeopleForDay [pk] cd
   pure . fmap taskOption $ tw
   where
     taskOption =
@@ -287,7 +283,7 @@ possibleOwnerSplices = mapV (C.pureSplice . C.textSplice) $ do
 
 timeLogsSplices
   :: PhbRuntimeSplice
-     ( Maybe TimeLogPeriod
+     ( Maybe Period
      , [Entity Person]
      , Maybe (Int64,Int64)
      , [Entity Person]
@@ -314,15 +310,15 @@ timeLogsSplices = C.withSplices C.runChildren $ do
       . multiply [] []
       $ allQueryParts p us
 
-    allQueryParts :: (Maybe TimeLogPeriod) -> [Entity Person] -> [(Text,(Text,Text))]
+    allQueryParts :: (Maybe Period) -> [Entity Person] -> [(Text,(Text,Text))]
     allQueryParts p us =
       (toList $ fmap periodQuery p) ++ (fmap userQuery us)
 
     periodQuery x = ("Period: "<> showPeriod x,("period",showPeriod x))
     userQuery x   = ("User: "<> (x^.eVal.personName),("user",x^.eKey.to keyToText))
-    showPeriod (TimeLogsForMonth m) = T.pack . show $ m
-    showPeriod (TimeLogsForWeek  w) = T.pack . show $ w
-    showPeriod (TimeLogsForDay   d) = T.pack . show $ d
+    showPeriod (ForMonth m) = T.pack . show $ m
+    showPeriod (ForWeek  w) = T.pack . show $ w
+    showPeriod (ForDay   d) = T.pack . show $ d
     multiply :: [NonEmpty (Text,(Text,Text))] -> [(Text,(Text,Text))] -> [(Text,(Text,Text))] -> [NonEmpty (Text,(Text,Text))]
     multiply out _   []     = out
     multiply out ws (x:xs) = multiply ((x:|(ws++xs)):out) (x:ws) xs
@@ -331,35 +327,14 @@ timeLogsSplices = C.withSplices C.runChildren $ do
 listTimeLogsSplices :: PhbSplice
 listTimeLogsSplices = do
   timeLogsSplices . lift $ do
-    cd  <- liftIO $ getCurrentDay
-    rq  <- getRequest
-    let ppStr = rqParam "period" rq >>= lastMay
-    let upStrs = maybe [] nub $ rqParam "user" rq
-    let pp = ppStr >>= (parsePeriod cd . B.unpack)
-    ups  <- traverse (parseUser . B.unpack) upStrs <&> catMaybes
+    pp  <- periodParams "period" <&> lastMay
+    ups <- userParams "user"
     pgs <- mfilter (const $ isNothing pp) . Just <$> defPaginationParam
     runPersist $ do
       twL <- queryTimeLogs pp ups pgs
       us  <- traverse getEntity ups <&> catMaybes
       tlp <- timeLoggablePeople
       pure (pp,us,pgs,tlp,twL)
-  where
-    parsePeriod cd s =
-      (TimeLogsForMonth <$> parseMonth' cd s) <|>
-      (TimeLogsForWeek <$> parseWeek' cd s) <|>
-      (TimeLogsForDay  <$> parseDay' cd s)
-
-    parseMonth' cd "this_month" = Just $ monthOfDay cd
-    parseMonth' cd "last_month" = Just . prevMonth $ monthOfDay cd
-    parseMonth'  _  s           = parseMonth s
-    parseWeek' cd  "this_week"  = Just $ weekOfDay cd
-    parseWeek' cd  "last_week"  = Just . prevWeek $ weekOfDay cd
-    parseWeek'  _  s            = parseWeek s
-    parseDay' cd   "today"      = Just cd
-    parseDay'  _  s             = parseDay s
-    parseUser :: String -> PhbHandler (Maybe (Key Person))
-    parseUser "me" = (userDbKey =<<) <$> with auth currentUser
-    parseUser k    = pure . stringToKey $ k
 
 allTimeLogSplices :: Splices PhbSplice
 allTimeLogSplices = do

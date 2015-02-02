@@ -3,8 +3,8 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Site.Event where
 
-import BasePrelude hiding (index, insert)
-import Prelude     ()
+import           BasePrelude                   hiding (index, insert)
+import           Prelude                       ()
 
 import           Control.Lens
 import           Control.Monad.Trans           (lift, liftIO)
@@ -24,9 +24,9 @@ import           Text.Digestive
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
+import           Phb.Dates
 import           Phb.Db
-import qualified Phb.Types.Event as T
-import           Phb.Util
+import qualified Phb.Types.Event               as T
 import           Site.Internal
 
 eventRoutes :: PhbRoutes
