@@ -1,28 +1,35 @@
-<timeLogFormMany class="form-horizontal">
-  <dfChildErrorList ref="" />
+<timeLogUserDate class="form-horizontal">
   <div class="row">
     <div class="col-sm-4">
       <div class="form-group">
-        <dfLabel ref="username" class="col-sm-6 control-label">
-          Username:
-        </dfLabel>
+        <label for="person" class="col-sm-6 control-label">
+          Person:
+        </label>
         <div class="col-sm-6">
-          <dfInputSelect ref="username" class="form-control"/>
+          <dfInputSelect ref="person" class="form-control"/>
         </div>
       </div>
      </div>
     <div class="col-sm-4">
       <div class="form-group">
-        <dfLabel ref="day" class="col-sm-2 control-label">
+        <dfLabel ref="date" class="col-sm-2 control-label">
           Day:
         </dfLabel>
         <div class="col-sm-6">
-          <dfInput type="date" ref="day" class="form-control"/>
+          <dfInput type="date" ref="date" class="form-control"/>
         </div>
       </div>
     </div>
   </div>
-  <br/>
+  <div class="form-group">
+    <div class="col-sm-offset-2 col-sm-10">
+      <dfInputSubmit name="action" value="Change Person/Date" class="btn btn-default btn-sm" />
+      <hr/>
+    </div>
+  </div>
+</timeLogUserDate>
+<timeLogFormRows class="form-horizontal">
+  <dfChildErrorList ref="" />
   <div class="row"><div class="col-sm-12">
     <div class="form-group">
       <dfLabel ref="rows" class="col-sm-2 control-label">
@@ -35,7 +42,7 @@
               Time Worked (HH:MM)
             </div>
             <div class="col-sm-3 subform-heading">
-              Against
+              Task
             </div>
             <div class="col-sm-6 subform-heading">
               Notes
@@ -57,7 +64,7 @@
                   </div>
                 </div>
                 <div class="col-sm-2">
-                  <dfInputSelectGroup ref="link" class="form-control" />
+                  <dfInputSelectGroup ref="task" class="form-control" />
                 </div>
                 <div class="col-sm-6">
                   <dfInputText ref="desc" class="form-control" />
@@ -90,8 +97,7 @@
       <dfInputSubmit name="action" value="Create" class="btn btn-primary" />
     </div>
   </div>
-</timeLogFormMany>
-
+</timeLogFormRows>
 <script>
   $(function () { PS.Phb.initTimeLogManyForm() });
 </script>

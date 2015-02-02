@@ -4,8 +4,8 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Phb.Db.Project where
 
-import           BasePrelude
-import           Prelude             ()
+import BasePrelude
+import Prelude     ()
 
 import           Control.Lens        hiding (from, (<.))
 import           Control.Monad.Trans (MonadIO, liftIO)
@@ -15,13 +15,13 @@ import           Database.Esqueleto  hiding ((^.))
 import qualified Database.Esqueleto  as E
 import qualified Database.Persist    as P
 
+import           Phb.Dates
 import           Phb.Db.Customer
 import           Phb.Db.Enums
 import           Phb.Db.Esqueleto
 import           Phb.Db.Internal
 import           Phb.Db.Person
-import qualified Phb.Types.Project   as T
-import           Phb.Util
+import qualified Phb.Types.Project as T
 
 data ProjectInput = ProjectInput
   { _projectInputName         :: Text
@@ -50,10 +50,13 @@ loadProject :: (MonadIO m, Applicative m)
   -> Db m T.Project
 loadProject ct (Entity pId p) = do
   cd <- liftIO $ localDayFromUTC ct
-  tws  <- P.selectList
-          [ TimeLogProject P.==. Just pId
-          , TimeLogDay     P.<=. cd
-          ] []
+  tws  <- E.select $ E.from $ \ (t `InnerJoin` tl) -> do
+    E.on (t E.^.TaskId ==. tl E.^. TimeLogTask)
+    where_
+      (   tl E.^. TimeLogDay <=. val cd
+      &&. t E.^. TaskProject ==. val (Just pId)
+      )
+    return tl
   ptds <- P.selectList [ProjectTargetDateProject P.==. pId]      []
   cs   <- loadProjectCustomers pId
   ps   <- loadProjectPeople pId

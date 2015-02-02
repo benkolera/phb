@@ -5,8 +5,8 @@
 {-# LANGUAGE TupleSections     #-}
 module Site.TimeLog where
 
-import           BasePrelude                   hiding (insert)
-import           Prelude                       ()
+import BasePrelude hiding (insert)
+import Prelude     ()
 
 import           Control.Error
 import           Control.Lens                  hiding (Action)
@@ -20,8 +20,7 @@ import           Data.Map.Syntax
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
 import           Data.Text.Lens                (unpacked)
-import           Data.Time                     (Day, UTCTime, addDays,
-                                                getCurrentTime)
+import           Data.Time                     (Day, addDays)
 import           Database.Persist.Sql
 import           Heist
 import qualified Heist.Compiled                as C
@@ -35,14 +34,15 @@ import           Text.Digestive                as DF
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
-import           Phb.Auth                      (userDbKey)
-import           Phb.Dates
-import           Phb.Db
-import           Phb.Mail
-import           Phb.Types.TimeLog
-import           Phb.Util
-import           Site.Internal
-import           Site.TimeGraph                (timeSummaryDataSplices)
+import Phb.Auth          (userDbKey)
+import Phb.Dates
+import Phb.Db
+import Phb.Mail
+import Phb.Types.Task
+import Phb.Types.TimeLog
+import Phb.Util
+import Site.Internal
+import Site.TimeGraph    (timeSummaryDataSplices)
 
 handlePester :: PhbHandler ()
 handlePester = do
@@ -67,7 +67,7 @@ data TimeLogInput = TimeLogInput
   , _timeLogInputDesc   :: T.Text
   , _timeLogInputHours  :: Int
   , _timeLogInputMins   :: Int
-  , _timeLogInputLink   :: LinkKey
+  , _timeLogInputTask   :: (Key Task)
   } deriving Show
 makeLenses ''TimeLogInput
 
@@ -76,7 +76,7 @@ data TimeLogInputRow = TimeLogInputRow
   { _timeLogInputRowDesc  :: T.Text
   , _timeLogInputRowHours :: Int
   , _timeLogInputRowMins  :: Int
-  , _timeLogInputRowLink  :: LinkKey
+  , _timeLogInputRowTask  :: (Key Task)
   } deriving Show
 makeLenses ''TimeLogInputRow
 
@@ -96,37 +96,19 @@ personChoiceOption :: Entity Person -> (Key Person,T.Text)
 personChoiceOption =
   entityKey &&& (^. to entityVal . personName)
 
-groupLinkKeys :: [(LinkKey,Text)] -> [(Text,[(LinkKey,Text)])]
-groupLinkKeys=
-  -- This could use Data.Map.insertWith except for the fact that
-  -- I want to order the output based on the Ord of LinkKey
-  -- TODO: Gotta be a better way though.
-  fmap (fst . NEL.head &&& fmap snd . toList)
-  . NEL.groupBy (on (==) fst)
-  . fmap (linkTypeName . fst &&& id)
-  . sortBy (on compare fst)
-  where
-    linkTypeName (ProjectLink _)      = "Project"
-    linkTypeName (BacklogLink _)      = "Backlog"
-    linkTypeName (ActionLink _)       = "Action"
-    linkTypeName (EventLink _)        = "Event"
-    linkTypeName (WorkCategoryLink _) = "Work Category"
-
-
 timeLogForm :: TimeLogWhole -> PhbForm T.Text TimeLogInput
 timeLogForm tl =
   check timeErrMsg timeOk $ monadic $ do
-  ct <- liftIO getCurrentTime
-  cd <- liftIO $ localDayFromUTC ct
-  (lk,pp) <- runPersist $ timeLogFormOptions ct
-  p  <- (userDbKey =<<) <$> with auth currentUser
+  (_,p)   <- requireCurrentUser
+  cd      <- liftIO $ getCurrentDay
+  (ts,pp) <- runPersist $ timeLogFormOptions p cd
   return $ TimeLogInput
-    <$> "username" .: choice pp (username <|> p)
+    <$> "username" .: choice pp (username <|> Just p)
     <*> "day"      .: html5DateFormlet (day <|> Just cd)
     <*> "desc"     .: text desc
     <*> "hours"    .: positiveIntForm "Hours" hours
     <*> "minutes"  .: positiveIntForm "Minutes" minutes
-    <*> "link"     .: groupedChoice (groupLinkKeys lk) link
+    <*> "task"     .: choice ts task
   where
     timeOk i = ((i^.timeLogInputHours) + (i^.timeLogInputMins)) > 0
     username = (tl ^? timeLogWholeLog . eVal . timeLogPerson )
@@ -135,46 +117,65 @@ timeLogForm tl =
     hours    = allMins <&> (`div` 60)
     minutes  = allMins <&> (`mod` 60)
     allMins  = (tl ^? timeLogWholeLog . eVal . timeLogMinutes )
-    link     = (tl ^? timeLogWholeLink . _Just . timeLogLinkKey )
+    task     = (tl ^? timeLogWholeTask.taskWholeTask.eKey)
 
-timeLogFormMany :: PhbForm T.Text TimeLogInputMany
-timeLogFormMany = monadic $ do
-  ct <- liftIO getCurrentTime
-  cd <- liftIO $ localDayFromUTC ct
-  (lk,pp) <- runPersist $ timeLogFormOptions ct
-  p  <- (userDbKey =<<) <$> with auth currentUser
+timeLogFormUserDate :: PhbForm T.Text (Key Person,Day)
+timeLogFormUserDate = monadic $ do
+  (_,cp) <- requireCurrentUser
+  cd     <- liftIO getCurrentDay
+  pp     <- runPersist $ personOptions
+  return $ (,)
+    <$> "person" .: choice pp (Just cp)
+    <*> "date"    .: html5DateFormlet (Just cd)
+
+timeLogFormRows :: (Key Person,Day) -> PhbForm T.Text TimeLogInputMany
+timeLogFormRows (p,cd) = monadic $ do
+  ts <- runPersist $ taskOptions p cd
   return $ TimeLogInputMany
-    <$> "username" .: choice pp p
-    <*> "day"      .: html5DateFormlet (Just cd)
-    <*> "rows"     .: nelOf rowsErr (timeLogRowForm lk) Nothing
+    <$> pure p
+    <*> pure cd
+    <*> "rows"     .: nelOf rowsErr (timeLogRowForm ts) (Just $ initRows ts)
   where
     rowsErr = "Must supply at least one time log"
-    timeLogRowForm lk _ = check timeErrMsg timeOk
+    timeLogRowForm ts r = check timeErrMsg timeOk
       $ TimeLogInputRow
-      <$> "desc"     .: text Nothing
-      <*> "hours"    .: positiveIntForm "Hours" Nothing
-      <*> "minutes"  .: positiveIntForm "Minutes" Nothing
-      <*> "link"     .: groupedChoice (groupLinkKeys lk) Nothing
+      <$> "desc"     .: text (r^?_Just.timeLogInputRowDesc)
+      <*> "hours"    .: positiveIntForm "Hours" (r^?_Just.timeLogInputRowHours)
+      <*> "minutes"  .: positiveIntForm "Minutes" (r^?_Just.timeLogInputRowMins)
+      <*> "task"     .: choice ts (r^?_Just.timeLogInputRowTask)
 
-    timeOk i = ((i^.timeLogInputRowHours) + (i^.timeLogInputRowMins)) > 0
+    timeOk i = ((i^.timeLogInputRowHours) + (i^.timeLogInputRowMins)) >= 0
+    initRows ts = fmap (TimeLogInputRow "" 0 0 . fst) ts
 
 timeLogFormOptions
   :: (MonadIO m, Applicative m)
-  => UTCTime
-  -> Db m ([(LinkKey, Text)], [(Key Person, Text)])
-timeLogFormOptions ct = (,)
-  <$> loadLinkOptions
-  <*> (fmap personChoiceOption <$> selectList [PersonLogsTime ==. True] [Asc PersonName])
+  => Key Person
+  -> Day
+  -> Db m ([(Key Task, Text)], [(Key Person, Text)])
+timeLogFormOptions pk cd = (,) <$> taskOptions pk cd <*> personOptions
+
+personOptions
+  :: (Applicative m)
+  => Db m [(Key Person, Text)]
+personOptions = do
+  pps <- selectList [PersonLogsTime ==. True] [Asc PersonName]
+  pure . fmap personChoiceOption $ pps
+
+taskOptions
+  :: (MonadIO m, Applicative m)
+  => Key Person
+  -> Day
+  -> Db m ([(Key Task, Text)])
+taskOptions pk cd = do
+  tw <- loadTasksForPersonForDay pk cd
+  pure . fmap taskOption $ tw
   where
-    loadLinkOptions = do
-      fmap fold . sequence $
-        [ loadLinkOptions' ProjectLink projectName (loadActiveProjects ct)
-        , loadLinkOptions' BacklogLink backlogName (loadActiveBacklog ct)
-        , loadLinkOptions' EventLink eventName (loadActiveEvents ct)
-        , loadLinkOptions' ActionLink actionName (loadActiveActions ct)
-        , loadLinkOptions' WorkCategoryLink workCategoryName (loadActiveWorkCategories ct)
-        ]
-    loadLinkOptions' lc nl a = mkLinkOptions lc nl <$> a
+    taskOption =
+      (   (^.taskWholeTask.eKey)
+      &&& (^.taskWholeLink._Just.to taskLinkText))
+    taskLinkText tl =
+      (tl^.taskLinkKey.to linkTypeName) <> " - " <> (tl^.taskLinkName)
+
 
 positiveIntForm
   :: (Show a, Read a, Ord a, Num a, Monad m)
@@ -207,42 +208,54 @@ editTimeLogSplices = do
       flashSuccess $ "Timelog Updated"
       redirect "/time_logs"
 
-    newTimeLog (TimeLogInput p dy d h m l) =
-      TimeLog p d (h*60 + m) dy
-        (l ^? _ProjectLink)
-        (l ^? _EventLink)
-        (l ^? _BacklogLink)
-        (l ^? _ActionLink)
-        (l ^? _WorkCategoryLink)
+    newTimeLog (TimeLogInput p dy d h m t) =
+      TimeLog p d (h*60 + m) dy t
 
 createTimeLogSplices :: PhbSplice
 createTimeLogSplices = do
-  promise <- C.newEmptyPromise
-  outputChildren <- C.withSplices C.runChildren splice (C.getPromise promise)
+  promise     <- C.newEmptyPromise
+  outChildren <- C.withSplices C.runChildren splices (C.getPromise promise)
   pure . C.yieldRuntime $ do
-    (v, result) <- lift $ runForm "timeLogMany" timeLogFormMany
-    case result of
-      Just x  -> lift (createTimeLog x)
-      Nothing -> C.putPromise promise v >> C.codeGen outputChildren
+    changeUD <- lift $ (maybe False (== "Change Person/Date") <$> getParam "action")
+    (hv, hRes) <- lift $ runForm "timeLogUserDate" timeLogFormUserDate
+    rps <- lift $ if changeUD then rowParamsFromForm hRes else rowParamsFromEnv
+    let f = timeLogFormRows rps
+    let fname = "timeLogMany"
+    if changeUD
+    then do
+      rv <- lift $ getForm fname f
+      C.putPromise promise (hv,rv) >> C.codeGen outChildren
+    else do
+      (rv, rRes) <- lift $ runForm fname f
+      case rRes of
+        Just x  -> lift (createTimeLog x)
+        Nothing ->
+          C.putPromise promise (hv,rv) >> C.codeGen outChildren
   where
-    splice = do
-      "timeLogFormMany" ## formSplice mempty mempty
+    splices = do
+      "timeLogFormRows" ## formSplice mempty mempty . fmap snd
+      "timeLogUserDate" ## formSplice mempty mempty . fmap fst
+
+    rowParamsFromEnv :: PhbHandler (Key Person,Day)
+    rowParamsFromEnv = (,)
+      <$> (fmap snd requireCurrentUser)
+      <*> (liftIO getCurrentDay)
+
+    rowParamsFromForm :: Maybe (Key Person,Day) -> PhbHandler (Key Person,Day)
+    rowParamsFromForm res = maybe rowParamsFromEnv pure res
 
     createTimeLog x = do
       void . runPersist $ insertMany (newTimeLogs x)
       flashSuccess $ "Timelog Created"
       redirect "/time_logs?user=me"
 
-    newTimeLogs (TimeLogInputMany p dy rs) = toList
+    newTimeLogs (TimeLogInputMany p dy rs) =
+      filter (^.timeLogMinutes.to (> 0))
+      . toList
       . fmap (newTimeLog p dy)
       $ rs
-    newTimeLog p dy (TimeLogInputRow d h m l) =
-      TimeLog p d (h*60 + m) dy
-        (l ^? _ProjectLink)
-        (l ^? _EventLink)
-        (l ^? _BacklogLink)
-        (l ^? _ActionLink)
-        (l ^? _WorkCategoryLink)
+    newTimeLog p dy (TimeLogInputRow d h m t) =
+      TimeLog p d (h*60 + m) dy t
 
 timeLogSplices
   :: Splices (PhbRuntimeSplice
@@ -251,10 +264,10 @@ timeLogSplices
   -> PhbSplice)
 timeLogSplices = mapV (C.pureSplice . C.textSplice) $ do
   "personId"    ## (^.timeLogWholeLog.eVal.timeLogPerson.to spliceKey)
-  "username"    ## (^.timeLogWholePerson.eVal.personName)
+  "username"    ## (^.timeLogWholeTask.taskWholePerson.eVal.personName)
   "day"         ## (^.timeLogWholeLog.eVal.timeLogDay.to spliceDay)
   "minutes"     ## (^.timeLogWholeLog.eVal.timeLogMinutes.to show.from unpacked)
-  "timeAgainst" ## (^.timeLogWholeLink._Just.timeLogLinkName )
+  "timeAgainst" ## (^.timeLogWholeTask.taskWholeLink._Just.taskLinkName )
   "notes"       ## (^.timeLogWholeLog.eVal.timeLogDesc)
   "id"          ## (^.timeLogWholeLog.eKey.to spliceKey )
 

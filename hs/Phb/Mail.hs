@@ -32,7 +32,6 @@ import qualified Text.Blaze.Html5.Attributes   as A
 import           Text.Blaze.Internal           (textValue)
 
 import Phb.Db
-import Phb.Util
 
 data MailConfig = MailConfig
   { _mcFromAddr :: Address
@@ -66,12 +65,12 @@ timelogPesterEmail d (Entity _ p) = do
   l <- hoist generalize link
   postEmail
    (personToAddress p)
-   ("PHB - Please log time for " <> showTextDay d)
+   ("PHB - Please log time for " <> (T.pack $ show d))
    (plain $ TL.fromStrict l)
    (html l)
 
  where
-   intro = "You have not logged time for the " <> showTextDay d
+   intro = "You have not logged time for the " <> (T.pack $ show d)
    plea  = "Please log it here: "
    link  = mkLink $ "/time_logs/create"
    plain l = TL.unlines

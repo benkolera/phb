@@ -17,18 +17,14 @@ import           Database.Esqueleto
 import Phb.Dates
 import Phb.Db.Esqueleto
 import Phb.Db.Internal
+import Phb.Db.Task
+import Phb.Types.Task
 import Phb.Types.TimeLog
 import Phb.Types.TimeSummary
 
-data TimeLogPeriod
-  = TimeLogsForMonth Month
-  | TimeLogsForWeek Week
-  | TimeLogsForDay Day
-L.makePrisms ''TimeLogPeriod
-
 queryTimeLogs
   :: (MonadIO m, Applicative m)
-  => Maybe TimeLogPeriod
+  => Maybe Period
   -> [Key Person]
   -> Maybe (Int64,Int64)
   -> Db m [TimeLogWhole]
@@ -44,30 +40,20 @@ queryTimeLogs pp ups pgs = do
       [ fmap (mkPeriodFilter tl) pp
       , mfilter (const (not . null $ ups)) . Just $ tl ^. TimeLogPerson `in_` valList ups
       ]
-    mkPeriodFilter tl (TimeLogsForMonth m) =
+    mkPeriodFilter tl (ForMonth m) =
       withinPeriod tl TimeLogDay (startOfMonth m) (endOfMonth m)
-    mkPeriodFilter tl (TimeLogsForWeek w) =
+    mkPeriodFilter tl (ForWeek w) =
       withinPeriod tl TimeLogDay (startOfWeek w) (endOfWeek w)
-    mkPeriodFilter tl (TimeLogsForDay d) = (tl ^. TimeLogDay ==. val d)
+    mkPeriodFilter tl (ForDay d) = (tl ^. TimeLogDay ==. val d)
 
 loadTimeLogWhole
   :: (MonadIO m, Applicative m)
   => Entity TimeLog
   -> Db m TimeLogWhole
 loadTimeLogWhole twe = do
-  let tw = entityVal twe
-  p  <- getJust $ tw L.^. timeLogPerson
-  pLink <- loadLink tw projectName timeLogProject ProjectLink
-  eLink <- loadLink tw eventName timeLogEvent EventLink
-  bLink <- loadLink tw backlogName timeLogBacklog BacklogLink
-  aLink <- loadLink tw actionName timeLogAction ActionLink
-  wcLink <- loadLink tw workCategoryName timeLogCategory WorkCategoryLink
-  let lLink = pLink <|> eLink <|> bLink <|> aLink <|> wcLink
-  pure (TimeLogWhole twe (Entity (tw L.^.timeLogPerson) p) lLink)
-  where
-    loadLink tw nl ll lc =
-      fmap (\ (k,v) -> TimeLogLink (v L.^. nl) (lc k))
-      <$>  traverse (\ k -> (k,) <$> getJust k) (tw L.^. ll)
+  t  <- getEntityJust $ twe L.^.eVal.timeLogTask
+  tw <- loadTaskWhole t
+  pure (TimeLogWhole twe tw)
 
 loadTimeLogsForPeriod
   :: (MonadIO m, Applicative m)
@@ -93,18 +79,9 @@ summariseTimeLogs =
     accumTimeLogSummaryMap m tls =
       M.insertWith (<>) (summaryLabel tls) (summaryVal tls) m
 
-    summaryVal (TimeLogWhole tl p _) =
-      ( tl L.^.eVal.timeLogMinutes.L.to(fromIntegral >>> (/60.0) >>> Sum)
-      , [p]
+    summaryVal tl =
+      ( tl L.^.timeLogWholeLog.eVal.timeLogMinutes.L.to(fromIntegral >>> (/60.0) >>> Sum)
+      , [tl L.^.timeLogWholeTask.taskWholePerson]
       )
 
-    summaryLabel = (L.^.timeLogWholeLink.L._Just.timeLogLinkName)
-
-mkLinkOptions
-  :: Functor f
-  => (Key r -> l)
-  -> L.Getting n r n
-  -> f (Entity r)
-  -> f (l, n)
-mkLinkOptions lc nl =
-  fmap (lc . entityKey &&& L.view nl . entityVal)
+    summaryLabel = (L.^.timeLogWholeTask.taskWholeLink.L._Just.taskLinkName)

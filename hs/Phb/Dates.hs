@@ -4,12 +4,21 @@ module Phb.Dates
   ( DayOfWeek(..)
   , Week
   , Month
+  , Period(..)
+  , getCurrentDay
+  , getLocalTime
+  , localDayFromUTC
+  , localDayToUTC
+  , fromGregorianTime
+  , parseDay
+  , parseHumanDay
   , dayOfWeek
   , prevWeekday
   , nextWeekday
   , weekOfDay
   , mkWeek
   , parseWeek
+  , parseHumanWeek
   , startOfWeek
   , endOfWeek
   , prevWeek
@@ -17,6 +26,7 @@ module Phb.Dates
   , monthOfDay
   , mkMonth
   , parseMonth
+  , parseHumanMonth
   , startOfMonth
   , endOfMonth
   , prevMonth
@@ -25,6 +35,10 @@ module Phb.Dates
   , weekNum
   , monthYear
   , monthNum
+  , parseHumanPeriod
+  , _ForMonth
+  , _ForWeek
+  , _ForDay
   ) where
 
 import BasePrelude
@@ -36,7 +50,38 @@ import Data.Time
 import Data.Time.Calendar.MonthDay
 import Data.Time.Calendar.WeekDate
 import Data.Time.Lens
+import System.Locale               (defaultTimeLocale)
 import Text.Printf                 (printf)
+
+getCurrentDay :: IO Day
+getCurrentDay = localDay . zonedTimeToLocalTime <$> getZonedTime
+
+getLocalTime :: IO LocalTime
+getLocalTime = zonedTimeToLocalTime <$> getZonedTime
+
+localDayFromUTC :: UTCTime -> IO Day
+localDayFromUTC ct = getCurrentTimeZone
+  <&> (localDay . zonedTimeToLocalTime . (`utcToZonedTime` ct))
+
+localDayToUTC :: Day -> IO UTCTime
+localDayToUTC d = do
+  tz <- getCurrentTimeZone
+  pure . localTimeToUTC tz . LocalTime d $ midnight
+
+--showTextDay :: Day -> T.Text
+--showTextDay = T.pack . formatTime defaultTimeLocale "%F"
+
+fromGregorianTime :: Integer -> Int -> Int -> Int -> Int -> Pico -> LocalTime
+fromGregorianTime y m d hh mm ss =
+  LocalTime (fromGregorian y m d) (TimeOfDay hh mm ss)
+
+parseDay :: String -> Maybe Day
+parseDay = parseTime defaultTimeLocale "%F"
+
+parseHumanDay :: String -> IO (Maybe Day)
+parseHumanDay "today"     = Just <$> getCurrentDay
+parseHumanDay "yesterday" = Just . addDays (-1) <$> getCurrentDay
+parseHumanDay s           = pure $ parseDay s
 
 data DayOfWeek
   = Monday
@@ -126,6 +171,11 @@ parseWeek s = join $ mkWeek <$> y <*  sep <*>  w
     sep  = mfilter (== "-W") . Just . take 2 . drop 4 $ s
     w = readMay . drop 6 $ s
 
+parseHumanWeek :: String -> IO (Maybe Week)
+parseHumanWeek "this_week" = Just . weekOfDay <$> getCurrentDay
+parseHumanWeek "last_week" = Just . prevWeek . weekOfDay <$> getCurrentDay
+parseHumanWeek s           = pure $ parseWeek s
+
 -- |
 -- >>> weekOfDay (fromGregorian 2015 1 25)
 -- 2015-W04
@@ -192,6 +242,11 @@ parseMonth s = join $ mkMonth <$> y <*  sep <*>  m
     sep  = mfilter (== "-") . Just . take 1 . drop 4 $ s
     m = readMay . drop 5 $ s
 
+parseHumanMonth :: String -> IO (Maybe Month)
+parseHumanMonth "this_month" = Just . monthOfDay <$> getCurrentDay
+parseHumanMonth "last_month" = Just . prevMonth . monthOfDay <$> getCurrentDay
+parseHumanMonth s            = pure $ parseMonth s
+
 -- |
 -- >>> monthOfDay (fromGregorian 2015 01 25)
 -- 2015-01
@@ -227,3 +282,16 @@ endOfMonth   (Month y m) = fromGregorian y m (monthLength (isLeapYear y) m)
 nextMonth,prevMonth :: Month -> Month
 nextMonth = monthOfDay . addDays 1 . endOfMonth
 prevMonth = monthOfDay . addDays (-1) . startOfMonth
+
+data Period
+  = ForMonth Month
+  | ForWeek Week
+  | ForDay Day
+makePrisms ''Period
+
+parseHumanPeriod :: String -> IO (Maybe Period)
+parseHumanPeriod s = do
+  mMay <- fmap ForMonth <$> parseHumanMonth s
+  wMay <- fmap ForWeek  <$> parseHumanWeek s
+  dMay <- fmap ForDay   <$> parseHumanDay s
+  pure $ mMay <|> wMay <|> dMay

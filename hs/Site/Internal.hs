@@ -3,6 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 module Site.Internal where
@@ -29,7 +30,8 @@ import           Heist                                   (RuntimeSplice,
 import qualified Heist.Compiled                          as C
 import qualified Heist.Compiled.LowLevel                 as C
 import           Snap                                    hiding (get)
-import           Snap.Snaplet.Auth                       (AuthManager,
+import           Snap.Snaplet.Auth                       (AuthManager, AuthUser,
+                                                          currentUser,
                                                           requireUser)
 import           Snap.Snaplet.Heist.Compiled             (HasHeist, Heist,
                                                           heistLens)
@@ -52,7 +54,9 @@ import           Text.Digestive                          (Form, Formlet,
                                                           text, validate)
 import           Text.XmlHtml                            (getAttribute)
 
-import Phb.Db   hiding (Success)
+import Phb.Auth
+import Phb.Dates
+import Phb.Db    hiding (Success)
 import Phb.Ldap
 import Phb.Mail
 import Phb.Util
@@ -86,9 +90,18 @@ showText = T.pack . show
 spliceLocalTime :: LocalTime -> Text
 spliceLocalTime = T.pack . formatTime defaultTimeLocale "%F %H:%M"
 
+requireCurrentUser :: PhbHandler (AuthUser,Key Person)
+requireCurrentUser = do
+  cuMay  <- with auth currentUser
+  let outMay = cuMay >>= (\cu -> userDbKey cu <&> (cu,))
+  maybe (redirect "/login") pure $ outMay
+
 requireParam :: B.ByteString -> Handler Phb Phb B.ByteString
 requireParam name =
   getParam name >>= maybe (die400 $ "Required param: " <> name) return
+
+optionalKey :: PersistEntity r => B.ByteString -> PhbHandler (Maybe (Key r))
+optionalKey = (fmap (stringToKey . B.unpack =<<)) . getParam
 
 requireKey :: PersistEntity r => B.ByteString -> PhbHandler (Key r)
 requireKey name = do
@@ -106,6 +119,32 @@ requireEntity thing paramName = do
   k <- requireKey paramName
   e <- runPersist $ getEntity k
   requireOr404 thing (B.pack . show . fromSqlKey $ k) e
+
+parseParamsPhb
+  :: (B.ByteString -> (PhbHandler (Maybe a)))
+  -> B.ByteString
+  -> PhbHandler [a]
+parseParamsPhb f n = do
+  rq <- getRequest
+  fmap catMaybes . traverse f . fromMaybe [] $ rqParam n rq
+
+dateParams :: B.ByteString -> PhbHandler [Day]
+dateParams = parseParamsPhb (liftIO . parseHumanDay . B.unpack)
+
+weekParams :: B.ByteString -> PhbHandler [Week]
+weekParams = parseParamsPhb (liftIO . parseHumanWeek . B.unpack)
+
+monthParams :: B.ByteString -> PhbHandler [Month]
+monthParams = parseParamsPhb (liftIO . parseHumanMonth . B.unpack)
+
+periodParams :: B.ByteString -> PhbHandler [Period]
+periodParams = parseParamsPhb (liftIO . parseHumanPeriod . B.unpack)
+
+userParams :: B.ByteString -> PhbHandler [Key Person]
+userParams = parseParamsPhb (parseUser . B.unpack)
+  where
+    parseUser "me" = (userDbKey =<<) <$> with auth currentUser
+    parseUser k    = pure . stringToKey $ k
 
 requireOr400 :: B.ByteString -> Maybe a -> PhbHandler a
 requireOr400 = (`maybe` return) . die400

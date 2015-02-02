@@ -16,12 +16,12 @@ import           Data.Time           (UTCTime)
 import           Database.Esqueleto
 import qualified Database.Persist    as P
 
+import           Phb.Dates
 import           Phb.Db.Enums
 import           Phb.Db.Esqueleto
 import           Phb.Db.Internal
 import           Phb.Db.Project
 import qualified Phb.Types.Backlog as T
-import           Phb.Util
 
 data BacklogInput = BacklogInput
   { _backlogInputName         :: Text

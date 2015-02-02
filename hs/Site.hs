@@ -4,9 +4,8 @@ module Site
   ( app
   ) where
 
-import           BasePrelude                                 hiding (Handler,
-                                                              app)
-import           Prelude                                     ()
+import BasePrelude hiding (Handler, app)
+import Prelude     ()
 
 import           Control.Lens
 import           Database.Persist.Sql                        (runMigration)
@@ -19,21 +18,22 @@ import           Snap.Snaplet.Persistent
 import           Snap.Snaplet.Session.Backends.CookieSession
 import           Snap.Util.FileServe
 
-import           Phb.Auth                                    (initPhbAuthManager)
-import           Phb.Db                                      (migrateAll)
-import           Phb.Ldap                                    (mkLdapConfig)
-import           Phb.Mail                                    (mkMailConfig)
-import           Site.Action
-import           Site.Auth
-import           Site.Backlog
-import           Site.Customer
-import           Site.Event
-import           Site.Heartbeat
-import           Site.Internal
-import           Site.Person
-import           Site.Project
-import           Site.TimeLog
-import           Site.WorkCategory
+import Phb.Auth          (initPhbAuthManager)
+import Phb.Db            (migrateAll)
+import Phb.Ldap          (mkLdapConfig)
+import Phb.Mail          (mkMailConfig)
+import Site.Action
+import Site.Auth
+import Site.Backlog
+import Site.Customer
+import Site.Event
+import Site.Heartbeat
+import Site.Internal
+import Site.Person
+import Site.Project
+import Site.Task
+import Site.TimeLog
+import Site.WorkCategory
 
 routes :: PhbRoutes
 routes = fold $
@@ -45,6 +45,7 @@ routes = fold $
   , authRoutes
   , personRoutes
   , projectRoutes
+  , taskRoutes
   , timeLogRoutes
   , workCategoryRoutes
   , [ ("",ifTop $ render "index")
@@ -77,6 +78,7 @@ allCompiledSplices = fold
   , allAuthSplices
   , allPersonSplices
   , allProjectSplices
+  , allTaskSplices
   , allTimeLogSplices
   , allWorkCategorySplices
   , flashSplices

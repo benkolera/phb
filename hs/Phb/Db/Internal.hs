@@ -200,16 +200,22 @@ SuccessPerson
   person  PersonId
   UniqueSuccessPerson success person
   deriving Show
-TimeLog
+Task
   person   PersonId
-  desc     Text
-  minutes  Int
-  day      Day
+  name     Text
+  start    Day
+  finish   Day Maybe
   project  ProjectId Maybe
   event    EventId   Maybe
   backlog  BacklogId Maybe
   action   ActionId  Maybe
   category WorkCategoryId Maybe
+TimeLog
+  person   PersonId
+  desc     Text
+  minutes  Int
+  day      Day
+  task     TaskId
   deriving Show
 WorkCategory
   name       Text
@@ -221,8 +227,8 @@ PersonLogin
   activatedAt UTCTime Maybe default=now()
   suspendedAt UTCTime Maybe default=now()
   rememberToken Text Maybe
-  loginCount Int
-  failedLoginCount Int
+  loginCount Int default=0
+  failedLoginCount Int default=0
   lockedOutUntil UTCTime Maybe default=now()
   currentLoginAt UTCTime Maybe default=now()
   lastLoginAt UTCTime Maybe default=now()
@@ -232,8 +238,8 @@ PersonLogin
   updatedAt UTCTime default=now()
   resetToken Text Maybe
   resetRequestedAt UTCTime Maybe
-  roles String
-  meta String
+  roles String default=''
+  meta String default=''
 |]
 
 type Db m a = (MonadIO m) => SqlPersistT m a

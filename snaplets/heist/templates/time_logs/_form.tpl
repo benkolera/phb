@@ -29,10 +29,10 @@
   </div>
   <div class="form-group">
     <dfLabel ref="link" class="col-sm-2 control-label">
-      Time Against:
+      Task:
     </dfLabel>
     <div class="col-sm-2">
-      <dfInputSelectGroup ref="link" class="form-control" />
+      <dfInputSelectGroup ref="task" class="form-control" />
     </div>
   </div>
   <div class="form-group">
