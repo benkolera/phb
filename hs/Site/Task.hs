@@ -16,6 +16,7 @@ import           Data.Map.Syntax
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
 import           Data.Time                     (Day, UTCTime, getCurrentTime)
+import qualified Database.Esqueleto            as E
 import           Database.Persist.Sql
 import           Heist
 import qualified Heist.Compiled                as C
@@ -148,8 +149,8 @@ createTaskSplices = formSplices (pure Nothing)
 taskSplices :: Splices (PhbRuntimeSplice TaskWhole -> PhbSplice)
 taskSplices = mapV (C.pureSplice . C.textSplice) $ do
   "person"      ## (^.taskWholePerson.eVal.personName)
-  "started"     ## (^.taskWholeTask.eVal.taskStart.to spliceDay)
-  "finished"    ## (^.taskWholeTask.eVal.taskFinish._Just.to spliceDay)
+  "start"       ## (^.taskWholeTask.eVal.taskStart.to spliceDay)
+  "finish"      ## (^.taskWholeTask.eVal.taskFinish._Just.to spliceDay)
   "link"        ## (^.taskWholeLink._Just.taskLinkName )
   "name"        ## (^.taskWholeTask.eVal.taskName)
   "id"          ## (^.taskWholeTask.eKey.to spliceKey )
@@ -168,21 +169,28 @@ possibleOwnerSplices = mapV (C.pureSplice . C.textSplice) $ do
   "userId"    ## (^.eKey.to keyToText)
   "userName"  ## (^.eVal.personName)
 
-tasksSplices
-  :: PhbRuntimeSplice [TaskWhole]
-  -> PhbSplice
+tasksSplices :: PhbRuntimeSplice [TaskWhole] -> PhbSplice
 tasksSplices = C.withSplices C.runChildren $ do
   "taskRow"        ## C.manyWithSplices C.runChildren taskSplices
 
 listTasksSplices :: PhbSplice
-listTasksSplices = do
-  tasksSplices . lift $ do
+listTasksSplices = C.withSplices C.runChildren splices $ lift $ do
     cd  <- liftIO getCurrentDay
     pks <- userParams "user"
-    runPersist $ loadTasksForPeopleForDay pks cd
+    let q = if null pks
+            then (const $ E.val True)
+            else (\t -> t E.^. TaskPerson `E.in_` E.valList pks)
+    runPersist $ (,)
+      <$> loadActiveTasksForDay q cd
+      <*> loadCompletedTasksForDay q cd
+  where
+    splices :: Splices (PhbRuntimeSplice ([TaskWhole],[TaskWhole]) -> PhbSplice)
+    splices = do
+      "activeTasks"    ## tasksSplices . fmap fst
+      "completedTasks" ## tasksSplices . fmap snd
 
 allTaskSplices :: Splices PhbSplice
 allTaskSplices = do
-  "listTasks"   ## listTasksSplices
+  "allTasks"   ## listTasksSplices
   "createTask"  ## createTaskSplices
   "editTask"    ## editTaskSplices

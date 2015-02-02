@@ -62,6 +62,36 @@ loadTasksForPeopleForDay pks d = logs >>= traverse loadTaskWhole
           )
         return tl
 
+loadActiveTasksForDay
+  :: (MonadIO m, Applicative m)
+  => (SqlExpr (Entity Task) -> SqlExpr (Value Bool))
+  -> Day
+  -> Db m [TaskWhole]
+loadActiveTasksForDay q cd = logs >>= traverse loadTaskWhole
+  where
+    logs = select $ from $ \ (t) -> do
+      where_ ( q t &&. isActiveQ t cd )
+      return t
+
+loadCompletedTasksForDay
+  :: (MonadIO m, Applicative m)
+  => (SqlExpr (Entity Task) -> SqlExpr (Value Bool))
+  -> Day
+  -> Db m [TaskWhole]
+loadCompletedTasksForDay q cd = logs >>= traverse loadTaskWhole
+  where
+    logs = select $ from $ \ (t) -> do
+      where_ ( q t &&. not_ (isActiveQ t cd) &&. t ^. TaskStart <. val cd )
+      limit 25
+      return t
+
+isActiveQ
+  :: Esqueleto query expr backend
+  => expr (Entity Task)
+  -> Day
+  -> expr (Value Bool)
+isActiveQ tl d = withinBounds tl TaskStart TaskFinish d
+
 mkLinkOptions
   :: Functor f
   => (Key r -> l)

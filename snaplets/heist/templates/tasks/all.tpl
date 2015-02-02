@@ -3,14 +3,14 @@
   <div class="pull-right">
     <a href="/tasks/create" class="btn btn-success">New Task</a>
   </div>
-  <allProjects>
+  <allTasks>
     <h2>Active</h2>
-    <activeProjects>
+    <activeTasks>
       <apply template="_all" />
-    </activeProjects>
-    <h2>Last 20 Completed</h2>
-    <completedProjects>
+    </activeTasks>
+    <h2>Last 25 Completed</h2>
+    <completedTasks>
       <apply template="_all" />
-    </completedProjects>
-  </allProjects>
+    </completedTasks>
+  </allTasks>
 </apply>

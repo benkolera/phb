@@ -1,11 +1,11 @@
 <table class="table table-centered">
   <thead>
     <tr>
-      <th>Name</th>
-      <th>Person</th>
-      <th>Start</th>
-      <th>Finish</th>
-      <th>Against</th>
+      <th width="30%">Name</th>
+      <th width="20%">Person</th>
+      <th width="10%">Start</th>
+      <th width="10%">Finish</th>
+      <th width="30%">Against</th>
     </tr>
   </thead>
   <tbody>

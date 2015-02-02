@@ -45,4 +45,4 @@ UPDATE time_log SET task = (SELECT task FROM new_tasks WHERE time_log = time_log
 
 ALTER TABLE time_log ALTER COLUMN task SET NOT NULL;
 
---COMMIT;
+COMMIT;
