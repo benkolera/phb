@@ -46,7 +46,7 @@
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Tasks <span class="caret"></span></a>
                 <ul class="dropdown-menu" role="menu">
                   <li><a href="/tasks/create">New Task</a></li>
-                  <li><a href="/tasks">My Tasks</a></li>
+                  <li><a href="/tasks?user=me">My Tasks</a></li>
                   <li><a href="/tasks/standup">Standup View</a></li>
                 </ul>
               </li>
