@@ -31,6 +31,7 @@ import Site.Heartbeat
 import Site.Internal
 import Site.Person
 import Site.Project
+import Site.Standup
 import Site.Task
 import Site.TimeLog
 import Site.WorkCategory
@@ -45,6 +46,7 @@ routes = fold $
   , authRoutes
   , personRoutes
   , projectRoutes
+  , standupRoutes
   , taskRoutes
   , timeLogRoutes
   , workCategoryRoutes
@@ -78,6 +80,7 @@ allCompiledSplices = fold
   , allAuthSplices
   , allPersonSplices
   , allProjectSplices
+  , allStandupSplices
   , allTaskSplices
   , allTimeLogSplices
   , allWorkCategorySplices

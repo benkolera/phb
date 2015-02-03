@@ -5,14 +5,17 @@
 {-# LANGUAGE TupleSections     #-}
 module Site.Task where
 
-import BasePrelude hiding (insert)
+import BasePrelude hiding (insert, (<>))
 import Prelude     ()
 
 import           Control.Lens                  hiding (Action)
 import           Control.Monad.IO.Class        (MonadIO, liftIO)
 import           Control.Monad.Trans           (lift)
+import           Data.List.NonEmpty            (NonEmpty (..))
+import qualified Data.List.NonEmpty            as NEL
 import qualified Data.Map                      as M
 import           Data.Map.Syntax
+import           Data.Semigroup                ((<>))
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
 import           Data.Time                     (Day, UTCTime, getCurrentTime)
@@ -25,7 +28,7 @@ import           Snap                          (ifTop, redirect, with)
 import           Snap.Snaplet.Auth
 import           Snap.Snaplet.Heist.Compiled
 import           Snap.Snaplet.Persistent       (runPersist)
-import           Text.Digestive                as DF
+import           Text.Digestive                hiding (bool)
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
@@ -62,12 +65,12 @@ personChoiceOption =
 
 groupLinkKeys :: [(LinkKey,Text)] -> [(Text,[(LinkKey,Text)])]
 groupLinkKeys =
-  fmap (first linkTypeName)
-  . sortBy (on compare fst)
+  fmap (second toList)
+  . sortBy (on compare (fst . NEL.head . snd))
   . M.toList
   . foldl step M.empty
   where
-    step acc t@(k,_) = M.insertWith (<>) k [t] acc
+    step acc t@(k,_) = M.insertWith (<>) (linkTypeName k) (t:|[]) acc
 
 taskForm :: Maybe TaskWhole -> PhbForm T.Text TaskInput
 taskForm tl = monadic $ do
@@ -113,12 +116,14 @@ formSplices rts = do
   pure . C.yieldRuntime $ do
     tlw <- rts
     (v, result) <- lift $ runForm "task" (taskForm tlw)
+    let action = bool "Create" "Update" . isJust $ tlw
     case result of
      Just x  -> lift (upsertTask x (tlw ^?_Just.taskWholeTask.eKey))
-     Nothing -> C.putPromise promise v >> C.codeGen outputChildren
+     Nothing -> C.putPromise promise (v,action) >> C.codeGen outputChildren
   where
     splice = do
-      "taskForm" ## formSplice mempty mempty
+      "taskForm" ## formSplice mempty mempty . fmap fst
+      "action"   ## C.pureSplice (C.textSplice snd)
 
     upsertTask x kMay = do
       case kMay of

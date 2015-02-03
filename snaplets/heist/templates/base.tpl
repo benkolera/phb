@@ -38,16 +38,21 @@
         <div id="navbar" class="collapse navbar-collapse">
           <ifLoggedIn>
             <ul class="nav navbar-nav">
-              <li><a href="/heartbeats">Heartbeats</a></li>
-              <li><a href="/projects">Projects</a></li>
-              <li><a href="/backlog">Backlog</a></li>
-              <li><a href="/events">Events</a></li>
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Heartbeats <span class="caret"></span></a>
+                <ul class="dropdown-menu" role="menu">
+                  <li><a href="/heartbeats">All Heartbeats</a></li>
+                  <li><a href="/projects">Projects</a></li>
+                  <li><a href="/backlog">Backlog</a></li>
+                  <li><a href="/events">Events</a></li>
+                </ul>
+              </li>
+              <li><a href="/standup">Standup</a></li>
               <li class="dropdown">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Tasks <span class="caret"></span></a>
                 <ul class="dropdown-menu" role="menu">
                   <li><a href="/tasks/create">New Task</a></li>
                   <li><a href="/tasks?user=me">My Tasks</a></li>
-                  <li><a href="/tasks/standup">Standup View</a></li>
                 </ul>
               </li>
               <li class="dropdown">

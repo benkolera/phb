@@ -2,10 +2,10 @@
   <dfChildErrorList ref="" />
   <div class="form-group">
     <dfLabel ref="username" class="col-sm-2 control-label">
-      Username *:
+      Person *:
     </dfLabel>
     <div class="col-sm-2">
-      <dfInputSelect ref="username" class="form-control"/>
+      <dfInputSelect ref="person" class="form-control"/>
     </div>
   </div>
   <div class="form-group">
@@ -21,7 +21,7 @@
       Against *:
     </dfLabel>
     <div class="col-sm-2">
-      <dfInputSelect ref="link" class="form-control" />
+      <dfInputSelectGroup ref="link" class="form-control" />
     </div>
   </div>
   <div class="form-group">
@@ -37,7 +37,7 @@
       Finish:
     </dfLabel>
     <div class="col-sm-2">
-      <dfInput type="date" ref="start" class="form-control"/>
+      <dfInput type="date" ref="finish" class="form-control"/>
     </div>
   </div>
   <div class="form-group">

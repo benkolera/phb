@@ -11,7 +11,7 @@
   <tbody>
     <taskRow>
       <tr>
-        <td><a href="/task/${id}/edit"><name /></a></td>
+        <td><a href="/tasks/${id}/edit"><name /></a></td>
         <td><person /></td>
         <td><start /></td>
         <td><finish /></td>
