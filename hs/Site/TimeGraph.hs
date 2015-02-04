@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Site.TimeGraph where
 
-import           BasePrelude
-import           Prelude                             ()
+import BasePrelude
+import Prelude     ()
 
 import           Blaze.ByteString.Builder.ByteString (fromByteString)
 import           Control.Lens
@@ -19,29 +19,33 @@ import           Site.Internal
 import           Text.Printf                         (printf)
 
 timeSummaryDataSplices :: PhbRuntimeSplice [T.TimeSummary] -> PhbSplice
-timeSummaryDataSplices rts = C.withSplices C.runChildren splices $ do
-  ts <- rts
-  uuid <- liftIO . fmap (pack . filter (/= '-') . toString) $ nextRandom
-  pure (ts,uuid)
+timeSummaryDataSplices = C.deferMap mkUuid splices
   where
-    splices = do
+    mkUuid ts = do
+      uuid <- liftIO . fmap (pack . filter (/= '-') . toString) $ nextRandom
+      pure (ts,uuid)
+    splices = C.withSplices C.runChildren $ do
       "timeLogData" ## timeSummaryDataSplice
       "uuid"        ## (C.pureSplice (C.textSplice snd))
 
+-- I hate this, so much
 timeSummaryDataSplice :: PhbRuntimeSplice ([T.TimeSummary],Text) -> PhbSplice
 timeSummaryDataSplice rts = do
-  so <- pure . C.yieldPure $ fromByteString "<script>\nvar timeLogData"
+  so  <- pts "<script>\n$( function () {\n var timeLogData = ["
   js <- return $ C.yieldRuntime $ do
-    (s,uuid) <- rts
+    (s,_) <- rts
     return
       . fromByteString
-      . ((encodeUtf8 uuid <> "=[]") <>)
       . B.intercalate ","
       . fmap timeLogWholeJson
       . filter ((>= 0.5) . view T.timeSummaryHours) $ s
-  sc <- pure . C.yieldPure $ fromByteString "];\n</script>"
-  return . fold $ [so,js,sc]
+  fa   <- pts "];\nvar timeBreakdownChart = PS.Phb.heartbeatTimebreakdown(\""
+  uuid <- pure . C.yieldRuntime $ rts >>= pure . fromByteString . encodeUtf8 . snd
+  fb   <- pts "\")(timeLogData)(); console.log(timeBreakdownChart); $(\"#timeBreakdownLegend_"
+  sc   <- pts "\").append(timeBreakdownChart.generateLegend());}); </script>\n"
+  return . fold $ [so,js,fa,uuid,fb,uuid,sc]
   where
+    pts = pure . C.yieldPure . fromByteString
     timeLogWholeJson tlw = fold
       [ "{value: "
       , tlw^.T.timeSummaryHours.to (printf "%.3f").to B.pack

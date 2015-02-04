@@ -5,8 +5,8 @@
 {-# LANGUAGE TupleSections     #-}
 module Site.TimeLog where
 
-import           BasePrelude                   hiding (insert)
-import           Prelude                       ()
+import BasePrelude hiding (insert)
+import Prelude     ()
 
 import           Control.Error
 import           Control.Lens                  hiding (Action)
@@ -31,14 +31,14 @@ import           Text.Digestive                as DF
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
-import           Phb.Dates
-import           Phb.Db
-import           Phb.Mail
-import           Phb.Types.Task
-import           Phb.Types.TimeLog
-import           Phb.Util
-import           Site.Internal
-import           Site.TimeGraph                (timeSummaryDataSplices)
+import Phb.Dates
+import Phb.Db
+import Phb.Mail
+import Phb.Types.Task
+import Phb.Types.TimeLog
+import Phb.Util
+import Site.Internal
+import Site.TimeGraph    (timeSummaryDataSplices)
 
 handlePester :: PhbHandler ()
 handlePester = do
@@ -166,7 +166,7 @@ taskOptions
   -> Day
   -> Db m ([(Key Task, Text)])
 taskOptions pk cd = do
-  tw <- loadTasksForPeopleForDay [pk] cd
+  tw <- loadTasksForPeopleForDay [traceShowId pk] (traceShowId cd)
   pure . fmap taskOption $ tw
   where
     taskOption =
@@ -215,9 +215,14 @@ createTimeLogSplices = do
   promise     <- C.newEmptyPromise
   outChildren <- C.withSplices C.runChildren splices (C.getPromise promise)
   pure . C.yieldRuntime $ do
-    changeUD <- lift $ (maybe False (== "Change Person/Date") <$> getParam "action")
+    a <- lift $ getParam "action"
     (hv, hRes) <- lift $ runForm "timeLogUserDate" timeLogFormUserDate
-    rps <- lift $ if changeUD then rowParamsFromForm hRes else rowParamsFromEnv
+    -- this is a dirty, dirty hack. Surely sub forms or something would
+    -- work better here.
+    (changeUD,rps) <- lift $ case a of
+      Just "Change Person/Date" -> (True,)  <$> rowParamsFromForm hRes
+      Just "Create"             -> (False,) <$> rowParamsFromCreate
+      _                         -> (False,) <$> rowParamsFromEnv
     let f = timeLogFormRows rps
     let fname = "timeLogMany"
     if changeUD
@@ -227,13 +232,18 @@ createTimeLogSplices = do
     else do
       (rv, rRes) <- lift $ runForm fname f
       case rRes of
-        Just x  -> lift (createTimeLog (snd rps) x)
+        Just x  -> lift (createTimeLog x)
         Nothing ->
           C.putPromise promise (hv,rv) >> C.codeGen outChildren
   where
     splices = do
       "timeLogFormRows" ## formSplice mempty mempty . fmap snd
       "timeLogUserDate" ## formSplice mempty mempty . fmap fst
+
+    rowParamsFromCreate :: PhbHandler (Key Person,Day)
+    rowParamsFromCreate = (,)
+      <$> requireKey "timeLogMany.person"
+      <*> fmap fromJust (dateParam  "timeLogMany.date")
 
     rowParamsFromEnv :: PhbHandler (Key Person,Day)
     rowParamsFromEnv = (,)
@@ -243,11 +253,11 @@ createTimeLogSplices = do
     rowParamsFromForm :: Maybe (Key Person,Day) -> PhbHandler (Key Person,Day)
     rowParamsFromForm res = maybe rowParamsFromEnv pure res
 
-    createTimeLog d x = do
+    createTimeLog x = do
       void . runPersist $ do
         void $ insertMany (newTimeLogs x)
         let toComplete = NEL.filter (^.timeLogInputRowCompleted) (x^.timeLogInputManyLogs)
-        traverse (completeTask d) toComplete
+        traverse (completeTask (x^.timeLogInputManyDay)) toComplete
 
       flashSuccess $ "Timelog Created"
       redirect "/time_logs?user=me"
@@ -274,6 +284,7 @@ timeLogSplices = mapV (C.pureSplice . C.textSplice) $ do
   "day"         ## (^.timeLogWholeLog.eVal.timeLogDay.to spliceDay)
   "minutes"     ## (^.timeLogWholeLog.eVal.timeLogMinutes.to show.from unpacked)
   "timeAgainst" ## (^.timeLogWholeTask.taskWholeLink._Just.taskLinkName )
+  "taskId"      ## (^.timeLogWholeTask.taskWholeTask.eKey.to spliceKey)
   "notes"       ## (^.timeLogWholeLog.eVal.timeLogDesc)
   "id"          ## (^.timeLogWholeLog.eKey.to spliceKey )
 

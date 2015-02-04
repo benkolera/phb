@@ -14,7 +14,7 @@
         <td><a href="${currentUrl}&user=${personId}"><username /></a></td>
         <td><a href="${currentUrl}&period=${day}"><day /></a></td>
         <td><minutes /></td>
-        <td><timeAgainst /></td>
+        <td><a href="/tasks/${taskId}/edit"><timeAgainst /></a></td>
         <td><notes /></td>
         <td><a class="btn btn-default btn-sm" href="/time_logs/${id}/edit">Edit</a></td>
       </tr>

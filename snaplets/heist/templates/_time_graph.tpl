@@ -5,10 +5,3 @@
   <div id="timeBreakdownLegend" class="pull-right"></div>
 </div>
 <timeLogData />
-<script>
-$( function () {
-var timeBreakdownChart = PS.Phb.heartbeatTimebreakdown("<uuid />")(timeLogData)();
-console.log(timeBreakdownChart);
-$("#timeBreakdownLegend").append(timeBreakdownChart.generateLegend());
-});
-</script>
