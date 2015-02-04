@@ -5,7 +5,9 @@
       <div class="row">
         <div class="col-sm-9">
           <div class="row">
-            <h2>Yesterday</h2>
+            <div class="col-sm-1">
+              <h2>Yesterday</h2>
+            </div>
           </div>
           <div class="row">
             <div class="col-sm-6">

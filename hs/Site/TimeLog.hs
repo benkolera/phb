@@ -69,10 +69,11 @@ makeLenses ''TimeLogInput
 
 
 data TimeLogInputRow = TimeLogInputRow
-  { _timeLogInputRowDesc  :: T.Text
-  , _timeLogInputRowHours :: Int
-  , _timeLogInputRowMins  :: Int
-  , _timeLogInputRowTask  :: (Key Task)
+  { _timeLogInputRowDesc      :: T.Text
+  , _timeLogInputRowHours     :: Int
+  , _timeLogInputRowMins      :: Int
+  , _timeLogInputRowCompleted :: Bool
+  , _timeLogInputRowTask      :: (Key Task)
   } deriving Show
 makeLenses ''TimeLogInputRow
 
@@ -99,8 +100,8 @@ timeLogForm tl =
   cd      <- liftIO $ getCurrentDay
   (ts,pp) <- runPersist $ timeLogFormOptions p cd
   return $ TimeLogInput
-    <$> "username" .: choice pp (username <|> Just p)
-    <*> "day"      .: html5DateFormlet (day <|> Just cd)
+    <$> "person"   .: choice pp (username <|> Just p)
+    <*> "date"     .: html5DateFormlet (day <|> Just cd)
     <*> "desc"     .: text desc
     <*> "hours"    .: positiveIntForm "Hours" hours
     <*> "minutes"  .: positiveIntForm "Minutes" minutes
@@ -128,20 +129,22 @@ timeLogFormRows :: (Key Person,Day) -> PhbForm T.Text TimeLogInputMany
 timeLogFormRows (p,cd) = monadic $ do
   ts <- runPersist $ taskOptions p cd
   return $ TimeLogInputMany
-    <$> pure p
-    <*> pure cd
+    <$> "person"   .: validate validateKey (text (Just $ keyToText p))
+    <*> "date"     .: html5DateFormlet (Just cd)
     <*> "rows"     .: nelOf rowsErr (timeLogRowForm ts) (Just $ initRows ts)
   where
+    validateKey = maybe (DF.Error "Invalid person") DF.Success . stringToKey . T.unpack
     rowsErr = "Must supply at least one time log"
     timeLogRowForm ts r = check timeErrMsg timeOk
       $ TimeLogInputRow
-      <$> "desc"     .: text (r^?_Just.timeLogInputRowDesc)
-      <*> "hours"    .: positiveIntForm "Hours" (r^?_Just.timeLogInputRowHours)
-      <*> "minutes"  .: positiveIntForm "Minutes" (r^?_Just.timeLogInputRowMins)
-      <*> "task"     .: choice ts (r^?_Just.timeLogInputRowTask)
+      <$> "desc"      .: text (r^?_Just.timeLogInputRowDesc)
+      <*> "hours"     .: positiveIntForm "Hours" (r^?_Just.timeLogInputRowHours)
+      <*> "minutes"   .: positiveIntForm "Minutes" (r^?_Just.timeLogInputRowMins)
+      <*> "completed" .: DF.bool (Just False)
+      <*> "task"      .: choice ts (r^?_Just.timeLogInputRowTask)
 
     timeOk i = ((i^.timeLogInputRowHours) + (i^.timeLogInputRowMins)) >= 0
-    initRows ts = fmap (TimeLogInputRow "" 0 0 . fst) ts
+    initRows ts = fmap (TimeLogInputRow "" 0 0 False . fst) ts
 
 timeLogFormOptions
   :: (MonadIO m, Applicative m)
@@ -224,7 +227,7 @@ createTimeLogSplices = do
     else do
       (rv, rRes) <- lift $ runForm fname f
       case rRes of
-        Just x  -> lift (createTimeLog x)
+        Just x  -> lift (createTimeLog (snd rps) x)
         Nothing ->
           C.putPromise promise (hv,rv) >> C.codeGen outChildren
   where
@@ -240,17 +243,24 @@ createTimeLogSplices = do
     rowParamsFromForm :: Maybe (Key Person,Day) -> PhbHandler (Key Person,Day)
     rowParamsFromForm res = maybe rowParamsFromEnv pure res
 
-    createTimeLog x = do
-      void . runPersist $ insertMany (newTimeLogs x)
+    createTimeLog d x = do
+      void . runPersist $ do
+        void $ insertMany (newTimeLogs x)
+        let toComplete = NEL.filter (^.timeLogInputRowCompleted) (x^.timeLogInputManyLogs)
+        traverse (completeTask d) toComplete
+
       flashSuccess $ "Timelog Created"
       redirect "/time_logs?user=me"
+
+    completeTask d (TimeLogInputRow _ _ _ _ t) =
+      update t [TaskFinish =. Just d]
 
     newTimeLogs (TimeLogInputMany p dy rs) =
       filter (^.timeLogMinutes.to (> 0))
       . toList
       . fmap (newTimeLog p dy)
       $ rs
-    newTimeLog p dy (TimeLogInputRow d h m t) =
+    newTimeLog p dy (TimeLogInputRow d h m _ t) =
       TimeLog p d (h*60 + m) dy t
 
 timeLogSplices

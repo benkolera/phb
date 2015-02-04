@@ -4,23 +4,23 @@
 {-# LANGUAGE TupleSections    #-}
 module Phb.Db.TimeLog where
 
-import BasePrelude hiding (on)
-import Prelude     ()
+import           BasePrelude           hiding (on)
+import           Prelude               ()
 
-import qualified Control.Lens        as L
-import           Control.Monad.Trans (MonadIO)
-import qualified Data.Function       as F
-import qualified Data.Map            as M
-import           Data.Time           (Day)
+import qualified Control.Lens          as L
+import           Control.Monad.Trans   (MonadIO)
+import qualified Data.Function         as F
+import qualified Data.Map              as M
+import           Data.Time             (Day)
 import           Database.Esqueleto
 
-import Phb.Dates
-import Phb.Db.Esqueleto
-import Phb.Db.Internal
-import Phb.Db.Task
-import Phb.Types.Task
-import Phb.Types.TimeLog
-import Phb.Types.TimeSummary
+import           Phb.Dates
+import           Phb.Db.Esqueleto
+import           Phb.Db.Internal
+import           Phb.Db.Task
+import           Phb.Types.Task
+import           Phb.Types.TimeLog
+import           Phb.Types.TimeSummary
 
 queryTimeLogs
   :: (MonadIO m, Applicative m)
@@ -67,6 +67,25 @@ loadTimeLogsForPeriod s f = logs >>= traverse loadTimeLogWhole
         where_ (tl ^. TimeLogDay >=. val s &&. tl ^. TimeLogDay <=. val f)
         return tl
 
+summaryForTaskForDay
+  :: (MonadIO m, Applicative m)
+  => TaskWhole
+  -> Day
+  -> Db m TimeSummary
+summaryForTaskForDay t cd = summary . fmap timeLogHours <$> logs
+  where
+    logs =
+      select $ from $ \ (tl) -> do
+        where_ (tl ^. TimeLogDay ==. val cd
+                &&. tl ^. TimeLogTask ==. val (t L.^.taskWholeTask.eKey))
+        return tl
+    summary hs = TimeSummary
+      (t L.^.taskWholeLink.L._Just.taskLinkName)
+      (sum hs)
+      [t L.^.taskWholePerson]
+
+
+
 summariseTimeLogs :: [TimeLogWhole] -> [TimeSummary]
 summariseTimeLogs =
   fmap (\ (k,(hs,ps)) -> TimeSummary k (getSum hs) ps)
@@ -80,8 +99,12 @@ summariseTimeLogs =
       M.insertWith (<>) (summaryLabel tls) (summaryVal tls) m
 
     summaryVal tl =
-      ( tl L.^.timeLogWholeLog.eVal.timeLogMinutes.L.to(fromIntegral >>> (/60.0) >>> Sum)
+      ( Sum (timeLogHours $ tl L.^.timeLogWholeLog )
       , [tl L.^.timeLogWholeTask.taskWholePerson]
       )
 
     summaryLabel = (L.^.timeLogWholeTask.taskWholeLink.L._Just.taskLinkName)
+
+timeLogHours :: Entity TimeLog -> Double
+timeLogHours =
+  (L.^.eVal.timeLogMinutes.L.to(fromIntegral >>> (/60.0)))

@@ -1,48 +1,40 @@
-<taskForm class="form-horizontal">
+<timeLogForm class="form-horizontal">
   <dfChildErrorList ref="" />
   <div class="form-group">
     <dfLabel ref="username" class="col-sm-2 control-label">
-      Username *:
+      Person:
     </dfLabel>
     <div class="col-sm-2">
-      <dfInputSelect ref="username" class="form-control"/>
-    </div>
-  </div>
-  <div class="form-group">
-    <dfLabel ref="desc" class="col-sm-2 control-label">
-      Name *:
-    </dfLabel>
-    <div class="col-sm-2">
-      <dfInputTextArea ref="name" class="form-control" />
+      <dfInputSelect ref="person" class="form-control"/>
     </div>
   </div>
   <div class="form-group">
     <dfLabel ref="link" class="col-sm-2 control-label">
-      Against *:
+      Task:
     </dfLabel>
     <div class="col-sm-2">
-      <dfInputSelect ref="link" class="form-control" />
+      <dfInputSelect ref="task" class="form-control" />
     </div>
   </div>
   <div class="form-group">
     <dfLabel ref="day" class="col-sm-2 control-label">
-      Start *:
+      Date:
     </dfLabel>
     <div class="col-sm-2">
-      <dfInput type="date" ref="start" class="form-control"/>
+      <dfInput type="date" ref="date" class="form-control"/>
     </div>
   </div>
   <div class="form-group">
     <dfLabel ref="day" class="col-sm-2 control-label">
-      Finish:
+      Notes:
     </dfLabel>
     <div class="col-sm-2">
-      <dfInput type="date" ref="start" class="form-control"/>
+      <dfInputTextArea ref="desc" class="form-control"/>
     </div>
   </div>
   <div class="form-group">
     <div class="col-sm-offset-2 col-sm-2">
-      <dfInputSubmit name="action" value="${action}" class="btn btn-primary" />
+      <dfInputSubmit name="action" value="Update" class="btn btn-primary" />
     </div>
   </div>
-</taskForm>
+</timeLogForm>

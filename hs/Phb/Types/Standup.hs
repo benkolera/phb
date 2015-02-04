@@ -1,16 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Phb.Types.Standup where
 
-import Control.Lens
-import Database.Persist (Entity)
+import           Control.Lens
+import           Database.Persist      (Entity)
 
-import qualified Phb.Db                as D
+import qualified Phb.Db.Internal       as D
 import           Phb.Types.Task
 import           Phb.Types.TimeSummary
 
 data StandupPersonSummary = StandupPersonSummary
-  { _person         :: Entity D.Person
-  , _yesterdayTasks :: [(TaskWhole,TimeSummary,Bool)]
-  , _todayTasks     :: [TaskWhole]
+  { _standupPerson         :: Entity D.Person
+  , _standupYesterdayTasks :: [(TaskWhole,TimeSummary,Bool)]
+  , _standupTodayTasks     :: [TaskWhole]
   }
 makeLenses ''StandupPersonSummary

@@ -13,8 +13,8 @@
 
 module Phb.Db.Internal where
 
-import BasePrelude hiding (delete, insert)
-import Prelude     ()
+import           BasePrelude                 hiding (delete, insert)
+import           Prelude                     ()
 
 import           Control.Lens                hiding (Action)
 import           Control.Monad.Cont          (MonadIO)
@@ -27,7 +27,7 @@ import           Database.Persist
 import           Database.Persist.Postgresql hiding (getJust)
 import           Database.Persist.TH
 
-import Phb.Db.Enums
+import           Phb.Db.Enums
 
 share
   [mkPersist sqlSettings { mpsGenerateLenses = True }
@@ -190,6 +190,9 @@ ProjectTargetDate
   day      Day
   handwavy Text Maybe
   deriving Show
+PublicHoliday
+  day  Day
+  name Text
 Success
   heartbeat    HeartbeatId
   what         Text

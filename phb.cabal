@@ -66,6 +66,7 @@ executable phb
                      , transformers              >= 0.3    && < 0.4
                      , unordered-containers      >= 0.2
                      , UtilityTM                 >= 0.0.4
+                     , uuid
                      , xmlhtml                   >= 0.2
   hs-source-dirs:      hs
   default-language:    Haskell2010

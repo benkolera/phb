@@ -10,6 +10,8 @@ module Phb.Dates
   , localDayFromUTC
   , localDayToUTC
   , fromGregorianTime
+  , isWeekday
+  , isWeekDayOfWeek
   , parseDay
   , parseHumanDay
   , dayOfWeek
@@ -41,17 +43,17 @@ module Phb.Dates
   , _ForDay
   ) where
 
-import BasePrelude
-import Prelude     ()
+import           BasePrelude
+import           Prelude                     ()
 
-import Control.Error
-import Control.Lens
-import Data.Time
-import Data.Time.Calendar.MonthDay
-import Data.Time.Calendar.WeekDate
-import Data.Time.Lens
-import System.Locale               (defaultTimeLocale)
-import Text.Printf                 (printf)
+import           Control.Error
+import           Control.Lens
+import           Data.Time
+import           Data.Time.Calendar.MonthDay
+import           Data.Time.Calendar.WeekDate
+import           Data.Time.Lens
+import           System.Locale               (defaultTimeLocale)
+import           Text.Printf                 (printf)
 
 getCurrentDay :: IO Day
 getCurrentDay = localDay . zonedTimeToLocalTime <$> getZonedTime
@@ -103,6 +105,14 @@ dayOfWeek = fromInt . view _3 . toWeekDate
     fromInt 6 = Saturday
     fromInt 7 = Sunday
     fromInt d = error $ "Invalid day in Day value: " ++ show d
+
+isWeekday :: Day -> Bool
+isWeekday = isWeekDayOfWeek . dayOfWeek
+
+isWeekDayOfWeek :: DayOfWeek -> Bool
+isWeekDayOfWeek Saturday = False
+isWeekDayOfWeek Sunday   = False
+isWeekDayOfWeek _        = True
 
 adjustByDay :: (DayOfWeek -> Integer) -> Day -> Day
 adjustByDay f d = flip addDays d . f . dayOfWeek $ d

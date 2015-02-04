@@ -31,9 +31,11 @@
 <timeLogFormRows class="form-horizontal">
   <dfChildErrorList ref="" />
   <div class="row"><div class="col-sm-12">
+    <dfInputHidden ref="person" />
+    <dfInputHidden ref="date" />
     <div class="form-group">
       <dfLabel ref="rows" class="col-sm-2 control-label">
-        Logs
+        Logs:
       </dfLabel>
       <dfInputList ref="rows">
         <div class="col-sm-10">
@@ -41,11 +43,14 @@
             <div class="col-sm-2 subform-heading">
               Time Worked (HH:MM)
             </div>
-            <div class="col-sm-3 subform-heading">
+            <div class="col-sm-2 subform-heading">
               Task
             </div>
-            <div class="col-sm-6 subform-heading">
+            <div class="col-sm-5 subform-heading">
               Notes
+            </div>
+            <div class="col-sm-1 subform-heading">
+              Completed
             </div>
             <div class="col-sm-1 subform-heading">
             </div>
@@ -66,8 +71,15 @@
                 <div class="col-sm-2">
                   <dfInputSelectGroup ref="task" class="form-control" />
                 </div>
-                <div class="col-sm-6">
+                <div class="col-sm-5">
                   <dfInputText ref="desc" class="form-control" />
+                </div>
+                <div class="col-sm-1">
+                  <div style="margin: 0 auto; width: 10px;" class="checkbox">
+                    <label>
+                      <dfInputCheckbox ref="completed"/>
+                    </label>
+                  </div>
                 </div>
                 <div class="col-sm-1">
                   <button class="btn btn-xs btn-danger" removeControl value="Remove">
