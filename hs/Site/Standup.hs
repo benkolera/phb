@@ -7,11 +7,13 @@ import           Prelude                     ()
 
 import           Control.Lens
 import           Control.Monad.Trans         (lift, liftIO)
+import qualified Data.Text                   as T
 import           Heist
 import qualified Heist.Compiled              as C
 import           Snap                        (ifTop)
 import           Snap.Snaplet.Heist.Compiled
 import           Snap.Snaplet.Persistent     (runPersist)
+import           Text.Printf                 (printf)
 
 import           Phb.Dates
 import           Phb.Db
@@ -28,7 +30,7 @@ standupRoutes =
 yesterdaySplices :: Splices (PhbRuntimeSplice (TaskWhole,TimeSummary,Bool) -> PhbSplice)
 yesterdaySplices = mapV (C.pureSplice . C.textSplice) $ do
   "taskName"    ## (^._1.taskWholeTask.eVal.taskName)
-  "taskHours"   ## (^._2.timeSummaryHours.to showText)
+  "taskHours"   ## (^._2.timeSummaryHours.to (T.pack . printf "%.2f"))
   "taskClass"   ## calcClass
   where
     calcClass = bool "" "standup-completed" . (^._3)
