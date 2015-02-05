@@ -280,7 +280,7 @@ timeLogSplices = mapV (C.pureSplice . C.textSplice) $ do
   "username"    ## (^.timeLogWholeTask.taskWholePerson.eVal.personName)
   "day"         ## (^.timeLogWholeLog.eVal.timeLogDay.to spliceDay)
   "minutes"     ## (^.timeLogWholeLog.eVal.timeLogMinutes.to show.from unpacked)
-  "timeAgainst" ## (^.timeLogWholeTask.taskWholeLink._Just.taskLinkName )
+  "taskName"    ## (^.timeLogWholeTask.taskWholeTask.eVal.taskName )
   "taskId"      ## (^.timeLogWholeTask.taskWholeTask.eKey.to spliceKey)
   "notes"       ## (^.timeLogWholeLog.eVal.timeLogDesc)
   "id"          ## (^.timeLogWholeLog.eKey.to spliceKey )
