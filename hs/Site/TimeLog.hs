@@ -5,8 +5,8 @@
 {-# LANGUAGE TupleSections     #-}
 module Site.TimeLog where
 
-import BasePrelude hiding (insert)
-import Prelude     ()
+import           BasePrelude                   hiding (insert)
+import           Prelude                       ()
 
 import           Control.Error
 import           Control.Lens                  hiding (Action)
@@ -31,14 +31,14 @@ import           Text.Digestive                as DF
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
-import Phb.Dates
-import Phb.Db
-import Phb.Mail
-import Phb.Types.Task
-import Phb.Types.TimeLog
-import Phb.Util
-import Site.Internal
-import Site.TimeGraph    (timeSummaryDataSplices)
+import           Phb.Dates
+import           Phb.Db
+import           Phb.Mail
+import           Phb.Types.Task
+import           Phb.Types.TimeLog
+import           Phb.Util
+import           Site.Internal
+import           Site.TimeGraph                (timeSummaryDataSplices)
 
 handlePester :: PhbHandler ()
 handlePester = do
@@ -171,10 +171,7 @@ taskOptions pk cd = do
   where
     taskOption =
       (   (^.taskWholeTask.eKey)
-      &&& (^.taskWholeLink._Just.to taskLinkText))
-    taskLinkText tl =
-      (tl^.taskLinkKey.to linkTypeName) <> " - " <> (tl^.taskLinkName)
-
+      &&& (^.taskWholeTask.eVal.taskName))
 
 positiveIntForm
   :: (Show a, Read a, Ord a, Num a, Monad m)
