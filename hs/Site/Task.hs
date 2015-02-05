@@ -5,8 +5,8 @@
 {-# LANGUAGE TupleSections     #-}
 module Site.Task where
 
-import BasePrelude hiding (insert, (<>))
-import Prelude     ()
+import           BasePrelude                   hiding (insert, (<>))
+import           Prelude                       ()
 
 import           Control.Lens                  hiding (Action)
 import           Control.Monad.IO.Class        (MonadIO, liftIO)
@@ -32,12 +32,12 @@ import           Text.Digestive                hiding (bool)
 import           Text.Digestive.Heist.Compiled
 import           Text.Digestive.Snap
 
-import Phb.Auth       (userDbKey)
-import Phb.Dates
-import Phb.Db
-import Phb.Types.Task
-import Phb.Util
-import Site.Internal
+import           Phb.Auth                      (userDbKey)
+import           Phb.Dates
+import           Phb.Db
+import           Phb.Types.Task
+import           Phb.Util
+import           Site.Internal
 
 taskRoutes :: PhbRoutes
 taskRoutes =
@@ -129,10 +129,10 @@ formSplices rts = do
       case kMay of
         Nothing -> do
           void . runPersist $ insert (newTask x)
-          flashSuccess $ "Timelog Created"
+          flashSuccess $ "Task Created"
         Just k -> do
           void . runPersist $ replace k (newTask x)
-          flashSuccess $ "Timelog Updated"
+          flashSuccess $ "Task Updated"
       redirect "/tasks?user=me"
 
     newTask (TaskInput p n s f l) =
