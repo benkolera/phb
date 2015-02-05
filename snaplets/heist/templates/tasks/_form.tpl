@@ -13,7 +13,7 @@
       Name *:
     </dfLabel>
     <div class="col-sm-2">
-      <dfInputTextArea ref="name" class="form-control" />
+      <dfInputText ref="name" class="form-control" />
     </div>
   </div>
   <div class="form-group">
