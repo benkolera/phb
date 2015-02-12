@@ -82,6 +82,7 @@ loadCompletedTasksForDay q cd = logs >>= traverse loadTaskWhole
   where
     logs = select $ from $ \ (t) -> do
       where_ ( q t &&. not_ (isActiveQ t cd) &&. t ^. TaskStart <. val cd )
+      orderBy [desc $ t ^. TaskFinish ]
       limit 25
       return t
 
