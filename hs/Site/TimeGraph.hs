@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Site.TimeGraph where
 
-import BasePrelude
-import Prelude     ()
+import           BasePrelude
+import           Prelude                             ()
 
 import           Blaze.ByteString.Builder.ByteString (fromByteString)
 import           Control.Lens
@@ -41,7 +41,7 @@ timeSummaryDataSplice rts = do
       . filter ((>= 0.5) . view T.timeSummaryHours) $ s
   fa   <- pts "];\nvar timeBreakdownChart = PS.Phb.heartbeatTimebreakdown(\""
   uuid <- pure . C.yieldRuntime $ rts >>= pure . fromByteString . encodeUtf8 . snd
-  fb   <- pts "\")(timeLogData)(); console.log(timeBreakdownChart); $(\"#timeBreakdownLegend_"
+  fb   <- pts "\")(timeLogData)(); console.log(timeBreakdownChart); $(\"#timeBreakdownLegend-"
   sc   <- pts "\").append(timeBreakdownChart.generateLegend());}); </script>\n"
   return . fold $ [so,js,fa,uuid,fb,uuid,sc]
   where
