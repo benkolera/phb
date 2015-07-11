@@ -1,5 +1,5 @@
 name:                phb
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            A portal for tracking and communicating pointy haired boss things.
 -- description:
 license:             MIT
@@ -9,72 +9,20 @@ maintainer:          ben.kolera@gmail.com
 build-type:          Simple
 cabal-version:       >=1.10
 
-data-dir: snaplets
-data-dir: static
-
-Flag development
-  Description: Whether to build the server in development (interpreted) mode
-  Default: False
-
 executable phb
-  main-is: Main.hs
-  build-depends:       base                      >=4.7 && <4.8
-                     , base-prelude
-                     , bifunctors                >= 4.1
-                     , blaze-markup              >= 0.6
-                     , blaze-builder             >= 0.3
-                     , blaze-html                >= 0.7
-                     , bytestring
-                     , clientsession             >= 0.9
-                     , containers                >= 0.5
-                     , configurator              >= 0.3
-                     , data-default              >= 0.5
-                     , directory-tree            >=0.10     && <0.12
-                     , digestive-functors        >= 0.7
-                     , digestive-functors-heist  >= 0.8
-                     , digestive-functors-snap   >= 0.6
-                     , either                    >= 4.3
-                     , errors                    >= 1.4
-                     , exceptions                >= 0.6
-                     , esqueleto                 >= 2.1
-                     , heist                     >= 0.14.0.1
-                     , lens                      >= 4.5
-                     , lens-datetime             >= 0.2
-                     , LDAP                      >= 0.6
-                     , map-syntax                >= 0.2
-                     , mime-mail                 >= 0.4.5
-                     , mmorph                    >= 1.0.4
-                     , monad-logger              >= 0.3
-                     , monad-control             >= 0.3
-                     , MonadCatchIO-transformers >= 0.2.1   && < 0.4
-                     , mtl                       >= 2.1     && < 2.2
-                     , old-locale                >= 1.0
-                     , persistent                >= 2.1
-                     , persistent-template       >= 2.1
-                     , persistent-postgresql     >= 2.1
-                     , random                    >= 1.0.1   && < 1.1
-                     , retry                     >= 0.5
-                     , safe                      >= 0.3
-                     , snap-core                 >= 0.9     && < 0.10
-                     , resourcet                 >= 1.1
-                     , semigroups                >= 0.15
-                     , snap                      >= 0.13    && < 0.14
-                     , snap-server               >= 0.9     && < 0.10
-                     , snap-loader-static        >= 0.9     && < 0.10
-                     , time                      >= 1.4
-                     , text                      >= 1.1    && < 1.2
-                     , transformers              >= 0.3    && < 0.4
-                     , unordered-containers      >= 0.2
-                     , UtilityTM                 >= 0.0.4
-                     , uuid
-                     , xmlhtml                   >= 0.2
-  hs-source-dirs:      hs
-  default-language:    Haskell2010
-  if flag(development)
-    build-depends:
-      snap-loader-dynamic == 0.10.*
-    cpp-options: -DDEVELOPMENT
-    ghc-options: -threaded -w
-  else
-    ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
-                 -fno-warn-orphans -fno-warn-unused-do-bind
+  main-is: Phb.hs
+  build-depends:
+      aeson             >= 0.8
+    , base              >= 4.7 && < 5
+    , bytestring
+    , configurator      == 0.3.*
+    , http-types
+    , opaleye           == 0.3.*
+    , postgresql-simple == 0.4.*
+    , servant           == 0.4.*
+    , servant-server    == 0.4.*
+    , text
+    , wai
+    , warp
+  hs-source-dirs:   hs
+  default-language: Haskell2010
