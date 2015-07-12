@@ -1,51 +1,86 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
-import Data.Aeson
-import Data.Text
-import GHC.Generics
-import Network.Wai
-import Network.Wai.Handler.Warp
-import Network.Wai.Middleware.RequestLogger
+{-# LANGUAGE TypeOperators     #-}
+{-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeFamilies      #-}
+module Main where
+
+import Control.Lens    ((^..),(%~),traversed,from,_Left)
+import Control.Monad.Reader (ReaderT,runReaderT)
+import Control.Monad.Except (ExceptT,runExceptT)
+import Control.Monad.Trans.Either (EitherT(EitherT))
+import Data.Aeson      (ToJSON)
+import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.Encoding as T
+import Network.HTTP.Types
+import Network.Wai     
+import Network.Wai.Handler.Warp 
+import Network.Wai.Middleware.RequestLogger (logStdout)
 import Servant
+import Servant.Server.Internal
 
-data Product = Product
-  { name              :: Text
-  , brand             :: Text
-  , current_price_eur :: Double
-  , available         :: Bool
-  } deriving (Eq, Show, Generic)
+import Database.PostgreSQL.Simple (connectPostgreSQL)
 
-instance ToJSON Product
+import Phb.Db    (DbEnv(DbEnv),DbError,listCustomers)
+import Phb.Types (_ApiCustomer,Customer)
 
-products :: [Product]
-products = [p1, p2]
+instance ToJSON Customer
 
-  where p1 = Product "Haskell laptop sticker"
-                     "GHC Industries"
-                     2.50
-                     True
+type PhbApi =
+  "login"            :> Raw
+  :<|> "logout"      :> Raw
+  :<|> "currentUser" :> Raw
+  :<|> AuthedApi
 
-        p2 = Product "Foldable USB drive"
-                     "Well-Typed"
-                     13.99
-                     False
+type AuthedApi = "customers" :> Get '[JSON] [Customer]
 
-type SimpleAPI = Get '[JSON] [Product]
+phbAPI :: Proxy PhbApi
+phbAPI = Proxy
 
-simpleAPI :: Proxy SimpleAPI
-simpleAPI = Proxy
+authedApi :: Proxy AuthedApi
+authedApi = Proxy
 
-server :: Server SimpleAPI
-server = return products
+runPhb :: DbEnv -> (ReaderT DbEnv (ExceptT DbError IO) :~> EitherT ServantErr IO)
+runPhb e = Nat $
+  EitherT
+  . fmap (_Left %~ toServantError)
+  . runExceptT
+  . flip runReaderT e
+  where
+    toServantError e = ServantErr
+      500
+      "Internal Server Error"
+      (T.encodeUtf8 . T.pack . show $ e )
+      []
 
--- logStdout :: Middleware
--- i.e, logStdout :: Application -> Application
--- serve :: Proxy api -> Server api -> Application
--- so applying a middleware is really as simple as
--- applying a function to the result of 'serve'
-app :: Application
-app = logStdout (serve simpleAPI server)
+serverT :: ServerT AuthedApi (ReaderT DbEnv (ExceptT DbError IO))
+serverT = customers
+  where
+    customers = (^..traversed.from _ApiCustomer) <$> listCustomers
+
+login :: Application
+login = undefined
+
+logout :: Application
+logout = undefined
+        
+currentUser :: Application
+currentUser = undefined
+
+server :: DbEnv -> Server PhbApi
+server e =
+  login
+  :<|> logout
+  :<|> currentUser
+  :<|> enter (runPhb e) serverT
+
+app :: DbEnv -> Application
+app e = logStdout (serve phbAPI (server e))
 
 main :: IO ()
-main = run 8000 app
+main = do
+  -- Dirty dirty for now
+  e <- DbEnv <$> connectPostgreSQL "dbname='phb2'"
+  run 8000 (app e)

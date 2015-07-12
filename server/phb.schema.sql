@@ -1,6 +1,9 @@
 BEGIN;
 
-CREATE TABLE department (
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+
+CREATE TABLE customer (
   id   SERIAL  NOT NULL PRIMARY KEY
 , name VARCHAR NOT NULL
 );
@@ -20,7 +23,7 @@ CREATE TABLE person (
   id                 SERIAL  NOT NULL PRIMARY KEY
 , name               VARCHAR NOT NULL
 , email              VARCHAR NOT NULL
-, department         INTEGER          REFERENCES department(id)
+, customer_id        INTEGER          REFERENCES customer(id)
 , receives_heartbeat BOOLEAN NOT NULL
 , logs_time          BOOLEAN NOT NULL
 );
@@ -30,9 +33,8 @@ CREATE TYPE work_item_type AS ENUM('project','backlog','support_category','event
 CREATE TABLE work_item (
   id                        SERIAL         NOT NULL PRIMARY KEY
 , name                      VARCHAR        NOT NULL
-, notes                     TEXT           NOT NULL
-, cost_centre_department_id INTEGER        NOT NULL REFERENCES department(id)
-, item_type                 work_item_type NOT NULL
+, notes                     TEXT           NOT NULL                         DEFAULT ''
+, type                      work_item_type NOT NULL
 );
 
 CREATE TABLE work_item_involves (
@@ -40,6 +42,14 @@ CREATE TABLE work_item_involves (
 , person_id    INTEGER NOT NULL REFERENCES person(id)
 , description  VARCHAR NOT NULL
 , PRIMARY KEY (work_item_id,person_id)
+);
+
+CREATE TABLE work_item_customer (
+  work_item_id    INTEGER      NOT NULL REFERENCES work_item(id)
+, customer_id     INTEGER      NOT NULL REFERENCES customer(id)
+, cost_percentage NUMERIC(5,2)
+, description     VARCHAR      NOT NULL
+, PRIMARY KEY (work_item_id,customer_id)
 );
 
 CREATE TABLE work_item_effort (
@@ -104,3 +114,6 @@ CREATE TABLE snapshot (
 , finish_date DATE   NOT NULL
 , data        JSON   NOT NULL
 );
+
+
+COMMIT;

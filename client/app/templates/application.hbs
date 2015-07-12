@@ -1,3 +1,54 @@
-<h2 id="title">Welcome to Ember.js</h2>
+<!-- Fixed navbar -->
+<nav class="navbar navbar-default navbar-fixed-top">
+  <div class="container-fluid">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      {{#link-to 'index' class="navbar-brand"}}PHB{{/link-to}}
+    </div>
+    <div id="navbar" class="collapse navbar-collapse">
+      <ul class="nav navbar-nav">
+        <li>{{#link-to 'snapshots'}}Snapshots{{/link-to}}</li>
+        <li>{{#link-to 'projects'}}Projects{{/link-to}}</li>
+        <li>{{#link-to 'backlog'}}Backlog{{/link-to}}</li>
+        <li>{{#link-to 'events'}}Events{{/link-to}}</li>
+        {{#nav-dropdown title="Tasks"}}
+          <li>{{#link-to 'tasks.create'}}Log Time{{/link-to}}</li>
+          <li>{{#link-to 'tasks'}}Show Tasks{{/link-to}}</li>
+        {{/nav-dropdown}}
+        {{#nav-dropdown title="Time Logs"}}
+          <li>{{#link-to 'timeLogs.create'}}Log Time{{/link-to}}</li>
+          <li>{{#link-to 'timeLogs'}}Show Tasks{{/link-to}}</li>
+        {{/nav-dropdown}}
+        {{#nav-dropdown title='Picklists'}}
+          <li>{{#link-to 'customers'}}Customers{{/link-to}}</li>
+          <li>{{#link-to 'people'}}People{{/link-to}}</li>
+          <li>{{#link-to 'supportCategories'}}Support Categories{{/link-to}}</li>
+        {{/nav-dropdown}}
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div>
+</nav>
 
-{{outlet}}
+<!-- Begin page content -->
+<div class="container-fluid">
+  {{outlet}}
+</div>
+
+<footer class="footer">
+  <div class="container-fluid">
+      <p class="text-muted">
+          Made with <i class="fa fa-heart"></i> by <a href="http://github.com/benkolera">Ben Kolera</a>
+          with the help of
+          <a href="http://emberjs.com/">EmberJS</a>,
+          <a href="http://getbootstrap.com">Bootstrap</a>,
+          <a href="https://hackage.haskell.org/package/opaleye">Opaleye</a> and
+          <a href="https://haskell-servant.github.io/">Servant</a>.
+          Find the code on <a href="http://github.com/benkolera/phb"><i class="fa fa-github"></i> Github</a>.
+      </p>
+  </div>
+</footer>

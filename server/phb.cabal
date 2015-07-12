@@ -12,16 +12,24 @@ cabal-version:       >=1.10
 executable phb
   main-is: Phb.hs
   build-depends:
-      aeson             >= 0.8
-    , base              >= 4.7 && < 5
+      aeson               >= 0.8
+    , base                >= 4.7 && < 5
+
     , bytestring
-    , configurator      == 0.3.*
+    , configurator        == 0.3.*
     , http-types
-    , opaleye           == 0.3.*
-    , postgresql-simple == 0.4.*
-    , servant           == 0.4.*
-    , servant-server    == 0.4.*
+    , either
+    , errors
+    , lens                == 4.12
+    , mtl                 == 2.2.*
+    , opaleye             == 0.3.*
+    , postgresql-simple   == 0.4.*
+    , product-profunctors 
+    , servant             == 0.4.*
+    , servant-server      == 0.4.*
+    , transformers
     , text
+    , time                == 1.5.*
     , wai
     , wai-extra
     , warp

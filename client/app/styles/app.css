@@ -1,0 +1,60 @@
+html {
+  position: relative;
+  min-height: 100%;
+}
+body {
+  /* Margin bottom by footer height */
+  margin-bottom: 60px;
+  font-family: 'Muli',Verdana,Helvetica,sans-serif;
+  color: #000F15;
+  background: url(/linedpaper.png) repeat 0 0;
+}
+
+
+.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 60px;
+  background-color: #DCE0E3;
+}
+
+.footer .text-muted {
+  font-size: 10pt;
+}
+
+body > .ember-view > .container-fluid {
+  padding: 60px 10px 30px;
+  background-color: #FFFFFF;
+  opacity: 0.75;
+  box-shadow:  0 0 1em 1em #ccc;
+}
+.container-fluid .text-muted {
+  margin: 20px 0;
+}
+
+.footer > .container-fluid {
+  padding-right: 10px;
+  padding-left: 10px;
+}
+
+code {
+  font-size: 80%;
+}
+
+h1,h2,h3,h4,h5 {
+  font-family: 'Molengo', Georgia, serif;
+  color: #74B4E2;
+}
+
+h1 {
+  margin-top: 5px;
+  padding-bottom: 5px;
+  margin-bottom: 20px;
+}
+
+.navbar-default {
+  background-color: #AED6EE;
+  border-color: #DCE0E3;
+  color: #DCE0E3;
+}
