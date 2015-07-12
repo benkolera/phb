@@ -10,8 +10,8 @@
     <tbody>
 {{#each model as |x|}}
     <tr>
-        <td>{{x.customerName}}</td>
-        <td>{{#link-to 'customers.customer.edit' x.customerId class="btn "}}<i class="fa fa-edit"></i> Edit{{/link-to}}</td>
+        <td>{{x.name}}</td>
+        <td>{{#link-to 'customers.customer.edit' x class="btn "}}<i class="fa fa-edit"></i> Edit{{/link-to}}</td>
     </tr>
 {{/each}}
     </tbody>

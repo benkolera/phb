@@ -109,8 +109,8 @@ login e req res = do
         let cookieVal = encryptUserCookie (e^.phbSessionKey) iv u
         res $ responseLBS status200 [("Set-Cookie",cookieVal)] ""
   where
-    checkLogin "ben" "butts" = pure . Just $ User 1
-    checkLogin _ _           = pure $ Nothing
+    checkLogin u "butts" = pure . Just $ User 1 u
+    checkLogin _ _       = pure $ Nothing
 
 decryptUserCookie :: Key -> B.ByteString -> Maybe User
 decryptUserCookie k = decode . BL.fromStrict <=< decrypt k

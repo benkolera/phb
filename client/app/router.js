@@ -6,6 +6,7 @@ var Router = Ember.Router.extend({
 });
 
 Router.map(function() {
+  this.route('login');
   this.route('snapshots');
   this.route('projects');
   this.route('backlog');
