@@ -11,6 +11,7 @@ cabal-version:       >=1.10
 
 executable phb
   main-is: Phb.hs
+  ghc-options: -Wall -Werror   
   build-depends:
       aeson               >= 0.8
     , base                >= 4.7 && < 5
@@ -22,6 +23,7 @@ executable phb
     , http-types
     , either
     , errors
+    , hoist-error         
     , lens                == 4.12
     , mtl                 == 2.2.*
     , opaleye             == 0.3.*

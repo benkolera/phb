@@ -10,6 +10,7 @@ module Phb.Db.Customer where
 
 import Control.Arrow                        (returnA)
 import Control.Lens                         hiding ((.>))
+import Control.Monad                        (void)
 import Control.Monad.Trans                  (liftIO)
 import Data.Profunctor.Product.TH           (makeAdaptorAndInstance)
 import Data.Text                            (Text)
@@ -38,11 +39,12 @@ type CustomerColumn = Customer' (Column PGInt4) (Column PGText)
 
 makeAdaptorAndInstance "pCustomer" ''Customer'
 
-type NewCustomer = Customer' (Maybe CustomerId) CustomerName
+type CustomerCreate = Customer' (Maybe CustomerId) CustomerName
+type CustomerUpdate = Customer' () CustomerName
 
-type NewCustomerColumn = Customer' (Maybe (Column PGInt4)) (Column PGText)
+type CustomerCreateColumn = Customer' (Maybe (Column PGInt4)) (Column PGText)
 
-customerTable :: Table NewCustomerColumn CustomerColumn
+customerTable :: Table CustomerCreateColumn CustomerColumn
 customerTable = Table "customer" $ pCustomer Customer
   { _customerId   = optional "id"
   , _customerName = required "name"
@@ -54,10 +56,15 @@ customerQuery = queryTable customerTable
 listCustomers :: CanDb m c e => m [Customer]
 listCustomers = liftQuery $ customerQuery
 
-insertCustomer :: CanDb m c e => NewCustomer -> m [Int]
-insertCustomer = liftInsertReturning customerTable (view customerId) . packNew
+insertCustomer :: CanDb m c e => CustomerCreate -> m [Int]
+insertCustomer = liftInsertReturning customerTable (view customerId) . packCreate
 
-toWrite :: (NewCustomerColumn -> NewCustomerColumn) -> CustomerColumn -> NewCustomerColumn
+updateCustomer :: CanDb m c e => CustomerId -> CustomerUpdate -> m ()
+updateCustomer cId uc = void $ liftUpdate customerTable
+  ((customerId .~ Nothing) . (customerName .~ (uc^.customerName.to packCustomerName)))
+  (\c -> c^.customerId .== packCustomerId cId)
+
+toWrite :: (CustomerCreateColumn -> CustomerCreateColumn) -> CustomerColumn -> CustomerCreateColumn
 toWrite f t = t & customerId .~ Nothing & f
 
 findCustomerById :: CanDb m c e => CustomerId -> m (Maybe Customer)
@@ -66,8 +73,8 @@ findCustomerById i = liftQueryFirst $ proc () -> do
   restrict -< t^.customerId .== packCustomerId i
   returnA  -< t
 
-packNew :: NewCustomer -> NewCustomerColumn
-packNew = pCustomer Customer
+packCreate :: CustomerCreate -> CustomerCreateColumn
+packCreate = pCustomer Customer
   { _customerId        = fmap packCustomerId
   , _customerName      = packCustomerName
   }

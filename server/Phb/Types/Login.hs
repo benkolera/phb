@@ -1,14 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
 module Phb.Types.Login 
   ( Login(Login)
   , loginUsername
   , loginPassword
   ) where
 
+import Data.Aeson   (FromJSON)
 import Control.Lens (makeLensesFor)
 import GHC.Generics (Generic)
-import Data.Text (Text)
+import Data.Text    (Text)
 
 data Login = Login
   { username :: Text
@@ -18,3 +20,5 @@ makeLensesFor
   [ ("username","loginUsername")
   , ("password","loginPassword") ]
   ''Login
+
+instance FromJSON Login

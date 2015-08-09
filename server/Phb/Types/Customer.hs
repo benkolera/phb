@@ -1,37 +1,23 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
+{-# OPTIONS_GHC -fno-warn-orphans      #-}
 module Phb.Types.Customer 
-  ( _ApiCustomer
-  , Customer(Customer)
-  , customerId
-  , customerName
+  ( CustomerRead(CustomerRead)
+  , CustomerUpdate(CustomerUpdate)
+  , CustomerCreate(CustomerCreate)
+  , customerReadFromDb
+  , customerUpdateToDb
   ) where
 
-import Control.Applicative ((<$>),(<*>))
-import Control.Lens (Iso',iso,view,makeLensesFor,_Wrapped,from)
-import GHC.Generics (Generic)
-import Data.Text (Text)
+import Control.Error  (hush)
+import Data.Text.Read (decimal)
+import Servant        (FromText(fromText))
 
-import qualified Phb.Db as D
+import Phb.Types.Customer.Create
+import Phb.Types.Customer.Update
+import Phb.Types.Customer.Read
+import Phb.Db                    (CustomerId(CustomerId))
 
-data Customer = Customer
-  { id   :: Int
-  , name :: Text
-  } deriving (Generic)
-makeLensesFor
-  [ ("id","customerId")
-  , ("name","customerName") ]
-  ''Customer
-
-_ApiCustomer :: Iso' Customer D.Customer
-_ApiCustomer = iso apiCustomerToDb dbCustomerToApi
-
-apiCustomerToDb :: Customer -> D.Customer
-apiCustomerToDb = D.Customer
-  <$> view (customerId.from _Wrapped)
-  <*> view (customerName.from _Wrapped)
-
-dbCustomerToApi :: D.Customer -> Customer
-dbCustomerToApi = Customer
-  <$> view (D.customerId._Wrapped)
-  <*> view (D.customerName._Wrapped)
+instance FromText CustomerId where
+  fromText = fmap (CustomerId . fst) . hush . decimal 

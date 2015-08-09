@@ -12,3 +12,5 @@
 /client/libpeerconnection.log
 /client/npm-debug.log
 /client/testem.log
+/server/client_session_key.aes
+/server/phb.iseekdata.sql

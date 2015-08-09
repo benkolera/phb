@@ -5,7 +5,7 @@
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
-module Phb.Servant where
+module Phb.Server.Cookie where
 
 import           Data.Typeable               (Proxy(Proxy))
 import           Data.String                 (fromString)
@@ -14,7 +14,6 @@ import           Network.Wai                 (requestHeaders)
 import           Servant.API                 ((:>))
 import           Servant.Server              (HasServer(ServerT,route))
 import           Servant.Common.Text         (FromText, fromText)
-import           Servant.Server.Internal.ServantErr
 import           Web.Cookie                  (parseCookiesText)
 
 data Cookie (sym :: Symbol) a = Cookie 

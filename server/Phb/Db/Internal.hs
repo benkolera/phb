@@ -5,12 +5,13 @@
 {-# LANGUAGE TemplateHaskell       #-}
 module Phb.Db.Internal where
 
-import Data.Int                             (Int64)
+import Control.Applicative                  (Applicative)
 import Control.Lens
 import Control.Monad.Except                 (MonadError)
 import Control.Monad.Reader                 (MonadReader)
 import Control.Monad.Trans                  (MonadIO, liftIO)
 import Data.ByteString                      (ByteString)
+import Data.Int                             (Int64)
 import Data.Profunctor.Product.Default      (Default)
 import Database.PostgreSQL.Simple           (Connection, QueryError, ResultError, SqlError, close)
 import Database.PostgreSQL.Simple.FromField (Conversion, Field, FromField (fromField))
@@ -34,6 +35,7 @@ type CanDb m c e =
   ( MonadReader c m
   , MonadError e m
   , MonadIO m
+  , Applicative m
   , AsDbError e
   , HasDbEnv c
   )

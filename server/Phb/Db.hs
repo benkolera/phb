@@ -5,4 +5,14 @@ module Phb.Db
 
 import Phb.Db.Internal (DbEnv(DbEnv),DbError,HasDbEnv(dbEnv),AsDbError(_DbError))
 import Phb.Db.Customer
-  (Customer,Customer'(Customer),listCustomers,customerId,customerName)
+  ( Customer
+  , CustomerId(CustomerId)
+  , Customer'(..)
+  , CustomerUpdate
+  , CustomerCreate
+  , listCustomers
+  , customerId
+  , customerName
+  , updateCustomer
+  , findCustomerById
+  )
