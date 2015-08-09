@@ -73,6 +73,12 @@ findCustomerById i = liftQueryFirst $ proc () -> do
   restrict -< t^.customerId .== packCustomerId i
   returnA  -< t
 
+findCustomerByName :: CanDb m c e => CustomerName -> m (Maybe Customer)
+findCustomerByName n = liftQueryFirst $ proc () -> do
+  t <- customerQuery -< ()
+  restrict -< t^.customerName .== packCustomerName n
+  returnA  -< t
+
 packCreate :: CustomerCreate -> CustomerCreateColumn
 packCreate = pCustomer Customer
   { _customerId        = fmap packCustomerId

@@ -15,4 +15,5 @@ import Phb.Db.Customer
   , customerName
   , updateCustomer
   , findCustomerById
+  , findCustomerByName
   )

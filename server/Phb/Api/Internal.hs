@@ -9,6 +9,7 @@ import Control.Monad.Trans       (MonadIO)
 import Control.Monad.Error.Hoist ((<?>))
 import Control.Monad.Reader      (MonadReader)
 import Control.Monad.Except      (MonadError)
+import Data.Text                 (Text)
 
 import Phb.Db         (DbEnv,HasDbEnv(dbEnv),DbError,AsDbError(_DbError))
 import Phb.Types      (RecordType)
@@ -23,6 +24,7 @@ instance HasDbEnv ApiEnv where
 
 data ApiError
   = NotFound RecordType String
+  | DuplicateRecord RecordType Text Text
   | ApiDbError DbError
   deriving Show
 makeClassyPrisms ''ApiError

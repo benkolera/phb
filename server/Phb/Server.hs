@@ -88,6 +88,11 @@ server e
           . flip runReaderT (AuthedPhbEnv u e)
           $ p
     loginRequired = ServantErr 401 "Login Required" "" []
+    toServantError (NotFound  = ServantErr
+      500
+      "Internal Server Error"
+      (TL.encodeUtf8 . TL.pack . show $ err )
+      []
     toServantError err = ServantErr
       500
       "Internal Server Error"
